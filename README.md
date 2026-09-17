@@ -1,5 +1,8 @@
 # MetaPanG
 
+> [!NOTE]
+> `MetaPanG` is under active development. A first release is coming soon.
+
 `MetaPanG` is a tool for strain-level profiling of metagenomic samples against
 bacterial pangenome graphs. Given sequencing reads and a collection of species
 pangenomes, it detects the species present in a sample, maps the reads onto each
