@@ -485,7 +485,7 @@ def profile(ctx, query, pangbank, output, threads,
             cv_folds, cv_min_rel_reduction, refine_ra,
             impute_min_neighbour_frac, reassign_max_rel_residual) -> None:
     """
-    [bold]Strain-level metagenomic profiling against a pangenome[/]
+    [bold]Strain-level metagenomic profiling against a pangenome collection[/]
 
     \b
     [bold]Output[/] (per detected species, under the output directory)
