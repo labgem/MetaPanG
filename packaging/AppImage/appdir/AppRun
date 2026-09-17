@@ -1,8 +1,0 @@
-#!/bin/bash
-set -e
-
-HERE="$(dirname "$(readlink -f "$0")")"
-eval "$($HERE/usr/bin/micromamba shell hook -s bash)"
-micromamba activate "$HERE/usr/env"
-exec python -m metapang "$@"
-
