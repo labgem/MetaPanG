@@ -1,0 +1,87 @@
+[project]
+name = "metapang"
+license = "CECILL-C"
+license-files = ["LICENSE"]
+description = "MetaPanG"
+readme = "README.md"
+dynamic = ['version']
+authors = [
+    { name = "Téo Lemane", email = "teo.lemane@genoscope.cns.fr" }
+]
+keywords = ["Pangenomics", "Comparative Genomics", "Bioinformatics", "Prokaryote"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Envrionment :: Console",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1.8",
+    "loguru>=0.7.3",
+    "ppanggolin>=2.3.1",
+    "pyfastx>=2.2.0",
+    "pygithub>=2.6.1",
+    "rich>=13.9.4",
+    "rich-click>=1.8.6",
+    "semver>=3.0.4",
+    "sourmash>=4.9.4",
+    "tables>=3.10.1",
+    "msgspec>=0.19.0",
+    "tomli-w>=1.2.0",
+    "jsonschema>=4.24.0",
+    "gb-io>=0.3.6",
+    "httpx>=0.28.1",
+    "scipy>=1.15.3",
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+]
+
+[project.scripts]
+metapang = "metapang.__main__:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "metapang",
+    "metapang.core",
+    "metapang.core.index",
+    "metapang.core.profile",
+    "metapang.pg",
+    "metapang.app",
+    "metapang.app.tools",
+    "metapang.app.index",
+    "metapang.app.configure",
+    "metapang.app.search",
+    "metapang.app.profile",
+    "metapang.report",
+    "metapang.utils",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "metapang.__version__" }
+
+[tool.pytest]
+addopts = ["-v", "-s", "--tb=short"]
+enable_assertion_pass_hook = true
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.1.0",
+    "black",
+    "pytest",
+    "ipython",
+    "viztracer>=1.1.1",
+]
+doc = [
+    "myst-parser>=4.0.1",
+    "sphinx-rtd-theme>=3.0.2",
+    "sphinx>=8.1.3",
+]
