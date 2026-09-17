@@ -36,12 +36,17 @@ import sys
     help="Number of threads to use for indexing __placeholder__.",
 )
 @click.option(
+    "--metagraph-path", "metagraph_path",
+    type=str,
+    help="Path to the metagraph binary (must be on the PATH otherwise) __placeholder__.",
+)
+@click.option(
     "--output", "-o",
     type=click.Path(path_type=str),
     help="Output file ('stdout' or '-' for standard output) __placeholder__.",
 )
 @click.pass_context
-def pangenome(ctx, dbg, annotations, pangbank, query, threads, output) -> None:
+def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, output) -> None:
     """
     [bold]Search a in a MetaPanG pangenome index[/bold]
 
@@ -94,7 +99,7 @@ def pangenome(ctx, dbg, annotations, pangbank, query, threads, output) -> None:
             dbg_file = dbg
             annotations_file = annotations
 
-        mcli = MetagraphCLI()
+        mcli = MetagraphCLI(metagraph_path)
 
         if output not in ("stdout", "-"):
             output = output.format(pangenome_name = dbg_file.stem, query_file_name = query.stem)

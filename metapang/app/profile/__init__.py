@@ -221,6 +221,7 @@ def phase2_mapping(state: ProfileState,
                    output: Path,
                    query: list[Path],
                    threads: int,
+                   metagraph_path: str,
                    gtime):
     """Map the query reads to the candidate's de Bruijn graph via metagraph."""
 
@@ -242,7 +243,7 @@ def phase2_mapping(state: ProfileState,
         if state.mapping(candidate) and output_file_family_anno.exists():
             mp_log.info(f"Reusing cached read mapping for '{candidate}' ('{output_file_family_anno}')")
         else:
-            metagraph = MetagraphCLI("/home/tlemane/work/dev/orgs/LABGeM/MetaPanG/tmp/new/metagraph_DNA_noAVX")
+            metagraph = MetagraphCLI(metagraph_path)
             metagraph_version = metagraph.version()
             mp_log.debug(f"metagraph version: {metagraph_version}")
             query_opt = MetagraphQueryOptions(
@@ -267,7 +268,7 @@ def phase2_mapping(state: ProfileState,
 def log_strain_profile(candidate: str, profile: StrainProfile) -> None:
     """Log a per-strain summary (abundance, relative abundance, gene counts) for a candidate."""
     if not profile.components:
-        mp_log.info("no strains detected above threshold")
+        mp_log.info("no strains detected")
         return
     for comp in sorted(profile.components, key=lambda c: c.ra, reverse=True):
         anchor = comp.anchor_refs[0] if comp.anchor_refs else f"comp{comp.component_id}"
@@ -389,6 +390,18 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
+    "--metagraph-path", "metagraph_path",
+    type=str,
+    help="""
+        \b
+        Path to the metagraph binary __placeholder__\n
+        \b
+        metagraph is not bundled with MetaPanG (it cannot share a conda
+        environment with graph-tool). It must be on the PATH, or its path
+        given here.
+    """,
+)
+@click.option(
     "--stop-rule", type=click.Choice(["cv", "cv_paired"]),
     help="""
         \b
@@ -480,7 +493,7 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.pass_context
-def profile(ctx, query, pangbank, output, threads,
+def profile(ctx, query, pangbank, output, threads, metagraph_path,
             stop_rule, k_max, merge_jaccard,
             cv_folds, cv_min_rel_reduction, refine_ra,
             impute_min_neighbour_frac, reassign_max_rel_residual) -> None:
@@ -550,7 +563,7 @@ def profile(ctx, query, pangbank, output, threads,
         for i, candidate in enumerate(candidates, 1):
             mp_log.info(f"[{i}/{n}] Profiling species '{candidate}'")
             with timer() as ctime, log_indent():
-                out_fam, _out_gen = phase2_mapping(state, candidate, collection_proxy, output_directory, queries, threads, gtime)
+                out_fam, _out_gen = phase2_mapping(state, candidate, collection_proxy, output_directory, queries, threads, metagraph_path, gtime)
 
                 annotated_gt = anno_output_directory / f"{candidate}.profile.gt"
 

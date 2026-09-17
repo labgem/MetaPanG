@@ -15,19 +15,28 @@ locally, so each resource is retrieved only once and reused by later runs.
 
 ## Installation
 
-`MetaPanG` depends on packages that are not available on PyPI (`graph-tool` and the
-`metagraph` and `ppanggolin` command-line tools). A conda environment file is
-provided at the repository root:
+`MetaPanG` depends on `graph-tool`, which is not available on PyPI. A conda
+environment file is provided at the repository root:
 
 ```
 conda env create -f environment.yaml
 conda activate metapang-env
 ```
 
-This installs the non-PyPI dependencies from conda and the remaining dependencies,
-declared in `pyproject.toml`, with pip.
+This installs `graph-tool` from conda and the remaining dependencies, declared in
+`pyproject.toml`, with pip.
 
-The environment health can be checked with:
+
+> [!WARNING]
+> `MetaPanG` also requires the `metagraph >= 0.5.1`. Install it from its [documentation](https://github.com/ratschlab/metagraph).
+> `metagraph` is not part of the conda environment above: it currently cannot
+> share an environment with `graph-tool`, because the two link incompatible
+> versions of the Boost libraries. This is a temporary limitation and will be
+> fixed. For now, make `metagraph` available on the `PATH` (the default is the
+> `metagraph` executable), or point `MetaPanG` at it with
+> `metapang profile --metagraph-path /path/to/metagraph`.
+
+The environment can be checked with:
 
 ```
 metapang checkhealth

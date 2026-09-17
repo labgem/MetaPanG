@@ -80,7 +80,7 @@ click.rich_click.OPTION_GROUPS = {
     "metapang profile": [
         {
             "name": "Input / output",
-            "options": ["--query", "--pangbank", "--output", "--threads"],
+            "options": ["--query", "--pangbank", "--output", "--threads", "--metagraph-path"],
         },
         {
             "name": "Options",

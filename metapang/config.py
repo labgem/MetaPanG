@@ -54,6 +54,7 @@ class metapang_search_c(Struct):
         mode: str = field(default="containment")
         threshold: float = field(default=0.1)
         threads: int = field(default=1)
+        metagraph_path: str = field(default="metagraph")
         output: str = field(default="{pangenome_name}_{query_file_name}.tsv")
 
     class bank_c(Struct):
@@ -76,6 +77,7 @@ class metapang_profile_c(Struct):
     pangbank: str = field(default="GTDB_refseq")
     output: str = field(default="{query}_{collection}_profile")
     threads: int = field(default=1)
+    metagraph_path: str = field(default="metagraph")
     # strain-number selection
     merge_jaccard: float = field(default=0.95)
     k_max: int = field(default=12)
