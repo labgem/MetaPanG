@@ -1,0 +1,29 @@
+[project]
+name = "metapang"
+version = "0.1.0"
+description = "Strain-level metagenomic profiling against pangenome graphs"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
+
+[feature.app.dependencies]
+python = "3.12.*"
+graph-tool = ">=2.98"
+numpy = ">=1.26,<2"
+pytest = "*"
+
+[feature.app.pypi-dependencies]
+metapang = { path = ".", editable = true }
+
+[feature.app.activation.env]
+PATH = "$PATH:$PIXI_PROJECT_ROOT/.pixi/envs/metagraph/bin"
+
+[feature.mg.dependencies]
+metagraph = "*"
+
+[environments]
+default = ["app"]
+metagraph = ["mg"]
+
+[tasks]
+metapang = "metapang"
+test = "pytest"

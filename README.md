@@ -18,6 +18,8 @@ locally, so each resource is retrieved only once and reused by later runs.
 
 ## Installation
 
+### With `conda`
+
 `MetaPanG` depends on `graph-tool`, which is not available on PyPI. A conda
 environment file is provided at the repository root:
 
@@ -28,7 +30,6 @@ conda activate metapang-env
 
 This installs `graph-tool` from conda and the remaining dependencies, declared in
 `pyproject.toml`, with pip.
-
 
 > [!WARNING]
 > `MetaPanG` also requires the `metagraph >= 0.5.1`. Install it from its [documentation](https://github.com/ratschlab/metagraph).
@@ -44,6 +45,20 @@ The environment can be checked with:
 ```
 metapang checkhealth
 ```
+
+### With `pixi`
+
+Alternatively, [pixi](https://pixi.sh) installs both `graph-tool` and `metagraph`
+for you, in two isolated environments wired together, so the manual `metagraph`
+step above is not needed:
+
+```
+pixi install
+pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+```
+
+`pixi run` sets everything up on first use. Use `pixi shell` to enter the environment and call `metapang`
+directly.
 
 ## Usage
 
