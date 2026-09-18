@@ -1,4 +1,5 @@
 from metapang.config import PanGBank_Config
+from metapang.exceptions import MetaPanG_Error
 from metapang.utils import parse_version
 from pathlib import Path
 from dataclasses import dataclass
@@ -84,7 +85,7 @@ def parse_collection_name_version(collection: str) -> tuple[str, str, str | None
         else:
             return collection, "latest", None
 
-class PanGBank_APIError(Exception):
+class PanGBank_APIError(MetaPanG_Error):
     """Error raised for PanGBank API failures."""
     pass
 
@@ -203,6 +204,27 @@ class PanGBank_API:
         )
         data = self._json_response(self._url("pangenomes"), params=params)
         return data[0]["id"]
+
+    def get_pangenome_name(self, collection: CollectionRelease, pangenome_id: int) -> str:
+        """Return a pangenome's name for its id, checked against `collection`.
+
+        Raises PanGBank_APIError if the id is unknown, or belongs to a different
+        collection or release version.
+        """
+        try:
+            data = self._json_response(self._url("pangenomes", str(pangenome_id)))
+        except httpx.HTTPStatusError as e:
+            raise PanGBank_APIError(f"Pangenome id {pangenome_id} not found in PanGBank") from e
+
+        release = data.get("collection_release") or {}
+        coll = release.get("collection") or {}
+        if coll.get("id") != collection.idx or release.get("version") != collection.version:
+            raise PanGBank_APIError(
+                f"Pangenome id {pangenome_id} ('{data.get('name')}') belongs to "
+                f"'{release.get('collection_name')}@{release.get('version')}', "
+                f"not '{collection.name}@{collection.version}'"
+            )
+        return data["name"]
 
     def fetch_pangenome(self, collection: CollectionRelease, name: str, out: Path) -> Path:
         """Download a pangenome file to out (with file locking)."""

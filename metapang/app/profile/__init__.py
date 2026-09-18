@@ -360,12 +360,15 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
         \b
         PanGBank collection to profile against __placeholder__\n
         \b
-        > Format: [bold]collection[/]\\[@version]\\[:species]
+        > Format: [bold]collection[/]\\[@version]\\[:pangenomes]
             - [i]version[/] is optional ('latest' by default)
-            - [i]species[/] is optional: give one to profile only that species,
-              otherwise every detected species is profiled
+            - [i]pangenomes[/] is optional: a comma-separated list, each item a
+              species name or a numeric PanGBank id. Give one or more to profile
+              exactly those, otherwise every detected species is profiled.
         \b
-        > Example: [bold]GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae[/]
+        > Examples:
+            [bold]GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae[/]
+            [bold]GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae,s__Abiotrophia defectiva,10805[/]
     """,
 )
 @click.option(
@@ -517,9 +520,20 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
 
     collection_release = pangbank_cache.api.get_collection(collection, collection_version)
 
-    if pangenome and not pangbank_cache.api.has_pangenome(collection_release, pangenome):
-        mp_log.error(f"Pangenome '{pangenome}' not found in {collection_release.full_name}")
-        sys.exit(1)
+    requested_pangenomes: list[str] = []
+    for token in (pangenome.split(",") if pangenome else []):
+        name = token.strip()
+        if not name:
+            continue
+        if name.isdigit():
+            resolved = pangbank_cache.api.get_pangenome_name(collection_release, int(name))
+            mp_log.info(f"Resolved pangenome id {name} to '{resolved}'")
+            name = resolved
+        if not pangbank_cache.api.has_pangenome(collection_release, name):
+            mp_log.error(f"Pangenome '{name}' not found in {collection_release.full_name}")
+            sys.exit(1)
+        if name not in requested_pangenomes:
+            requested_pangenomes.append(name)
 
     collection_proxy = pangbank_cache.proxy(collection_release)
 
@@ -549,11 +563,12 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
     mp_log.trace(f"Query files: {[str(q) for q in queries]}")
 
     with timer() as gtime:
-        if not pangenome:
-            candidates = phase1(state, collection_proxy, output_directory, queries, sample_name, threads, gtime)
+        if requested_pangenomes:
+            candidates = requested_pangenomes
+            mp_log.info(f"Profiling {len(candidates)} requested pangenome(s): "
+                        f"{', '.join(candidates)}")
         else:
-            candidates = [pangenome]
-            mp_log.info(f"Profiling only the requested pangenome: '{pangenome}'")
+            candidates = phase1(state, collection_proxy, output_directory, queries, sample_name, threads, gtime)
 
         anno_output_directory = output_directory / "annotations"
         anno_output_directory.mkdir(parents=True, exist_ok=True)
