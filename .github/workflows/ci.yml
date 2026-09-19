@@ -38,7 +38,7 @@ jobs:
         if: matrix.os != 'ubuntu-24.04-arm'
         run: pixi run -e default python -m pytest
 
-      - name: Diagnose shutdown crash (aarch64)
+      - name: Diagnose
         if: matrix.os == 'ubuntu-24.04-arm'
         run: |
           set +e
@@ -46,26 +46,24 @@ jobs:
           sudo sysctl -w kernel.core_pattern=/tmp/core.%e.%p
           ulimit -c unlimited
           py=$(pixi run -e default python -c "import sys; print(sys.executable)")
-          echo "python: $py"
+          echo "python: $py  ($(pixi run -e default python -c 'import sys;print(sys.version)'))"
+          pixi run -e default python -c "import sourmash; print('sourmash', sourmash.__version__)"
 
-          echo "== import =="
-          for m in numpy scipy "graph_tool" "graph_tool.all" sourmash pyfastx gb_io metapang; do
-            pixi run -e default python -c "import $m"
-            echo "  import $m -> exit $?"
-          done
-
-          pixi run -e default python -c "import graph_tool.all, sourmash"; echo "  graph_tool.all + sourmash -> exit $?"
-          pixi run -e default python -c "import metapang.core.index.index"; echo "  index (multiprocessing) -> exit $?"
-
-          echo "=== pytest ==="
-          pixi run -e default python -X faulthandler -m pytest
-          echo "pytest exit $?"
-
-          echo "== core dump ==="
-          ls -l /tmp/core.* 2>/dev/null || echo "no core file"
+          echo "== backtrace =="
+          rm -f /tmp/core.*
+          pixi run -e default python -c "import sourmash"; echo "  import sourmash -> exit $?"
           core=$(ls -t /tmp/core.* 2>/dev/null | head -1)
           if [ -n "$core" ]; then
-            gdb -batch -ex "bt" -ex "thread apply all bt" "$py" "$core" 2>&1 | head -150
-          elif command -v coredumpctl >/dev/null; then
-            echo "trying coredumpctl"; coredumpctl gdb -1 -A "-batch -ex bt" 2>&1 | head -150
+            gdb -batch -ex "bt" -ex "thread apply all bt" "$py" "$core" 2>&1 | head -120
+          else
+            echo "no core file (core_pattern=$(cat /proc/sys/kernel/core_pattern))"
           fi
+
+          echo "== sourmash version =="
+          for V in 4.8.14 4.9.0 4.9.1 4.9.2 4.9.3 4.9.4; do
+            rm -rf /tmp/smv
+            python3 -m venv /tmp/smv
+            /tmp/smv/bin/pip install -q "sourmash==$V" >/dev/null 2>&1 || { echo "  $V -> install failed"; continue; }
+            /tmp/smv/bin/python -c "import sourmash"
+            echo "  sourmash $V -> exit $?"
+          done
