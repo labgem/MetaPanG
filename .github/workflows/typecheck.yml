@@ -1,0 +1,27 @@
+name: typecheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: typecheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pyright:
+    name: pyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          environments: dev
+          locked: true
+          cache: true
+
+      - name: Type check
+        run: pixi run typecheck

@@ -14,7 +14,10 @@ class TimeStep:
     format_str: str = "%Hh%Mm%Ss"  # Default format for displaying time
 
     def format_absolute(
-        self, format_type: str = "auto", precision: int = 9, custom_format: str = None
+        self,
+        format_type: str = "auto",
+        precision: int = 9,
+        custom_format: str | None = None,
     ) -> str:
         """Format the absolute time since timer start."""
         if custom_format:
@@ -24,7 +27,10 @@ class TimeStep:
         return TimeFormatter.format_time(self.absolute_time, format_type, precision)
 
     def format_duration(
-        self, format_type: str = "auto", precision: int = 9, custom_format: str = None
+        self,
+        format_type: str = "auto",
+        precision: int = 9,
+        custom_format: str | None = None,
     ) -> str:
         """Format this step's own duration."""
         if custom_format:
@@ -290,7 +296,7 @@ class Timer:
         self.steps.clear()
         return self
 
-    def step(self, name: str = None) -> TimeStep:
+    def step(self, name: str | None = None) -> TimeStep:
         """Record a lap step and return it."""
         if not self._is_running:
             return TimeStep(name or "Invalid", 0.0, 0.0, time.perf_counter_ns())
@@ -357,9 +363,9 @@ class Timer:
 
     def format_time(
         self,
-        seconds: float = None,
+        seconds: float | None = None,
         format_type: str = "auto",
-        custom_format: str = None,
+        custom_format: str | None = None,
     ) -> str:
         """Format the given seconds, or the elapsed time if omitted."""
         if seconds is None:
@@ -369,7 +375,7 @@ class Timer:
         return TimeFormatter.format_time(seconds, format_type, self.precision)
 
     def format_elapsed(
-        self, format_type: str = "auto", custom_format: str = None
+        self, format_type: str = "auto", custom_format: str | None = None
     ) -> str:
         """Format the elapsed time."""
         return self.format_time(self.elapsed, format_type, custom_format)

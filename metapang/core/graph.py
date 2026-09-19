@@ -26,7 +26,7 @@ class pw_node_property(str, Enum):
 
     nid = "nid"
     strains = "strains"
-    partition = "partition"
+    partition = "partition"  # type: ignore[assignment]
     weight = "weight"
     read_count = "read_count"
     kmer_count = "kmer_count"

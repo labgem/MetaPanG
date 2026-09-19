@@ -62,7 +62,7 @@ class ProfileState:
         mp_log.debug(f"Signature ok: {self._signature_ok}")
         return self._signature_ok
 
-    def pan_search_ok(self) -> bool:
+    def pan_search_ok(self) -> None:
         """Mark the pangenome search step as complete and persist the state."""
         self._pan_search_ok = True
         self.write()
@@ -116,6 +116,7 @@ class ProfileState:
 
     def write(self) -> None:
         """Persist the current state to its pickle file."""
+        assert self.path is not None
         with open(self.path, "wb") as sf:
             pickle.dump(self, sf)
 

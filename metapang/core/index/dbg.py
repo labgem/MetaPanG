@@ -146,42 +146,48 @@ class MetagraphCLI(CLIExecutor):
         self._exe = find_executable(executable, paths or [])
         self._wd = wd
 
-    def build(self, options: MetagraphBuildOptions, wd=None) -> tuple[int, str, str]:
+    def build(
+        self, options: MetagraphBuildOptions, wd=None
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `build` command."""
         return self._execute(self._exe, "build", options, wd)
 
     def transform(
         self, options: MetagraphTransformOptions, wd=None
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `transform` command."""
         return self._execute(self._exe, "transform", options, wd)
 
     def annotate(
         self, options: MetagraphAnnotateOptions, wd=None
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `annotate` command."""
         return self._execute(self._exe, "annotate", options, wd)
 
-    def query(self, options: MetagraphQueryOptions, wd=None) -> tuple[int, str, str]:
+    def query(
+        self, options: MetagraphQueryOptions, wd=None
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `query` command, writing results to the output file."""
         with smart_io(options.output_file) as f:
             return self._execute(
                 self._exe, "query", options, wd, False, True, stdout_file=f
             )
 
-    def align(self, options: MetagraphAlignOptions, wd=None) -> tuple[int, str, str]:
+    def align(
+        self, options: MetagraphAlignOptions, wd=None
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `align` command."""
         return self._execute(self._exe, "align", options, wd)
 
     def transform_anno(
         self, options: MetagraphTransformAnnoOptions, wd=None
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `transform_anno` command."""
         return self._execute(self._exe, "transform_anno", options, wd)
 
     def relax_brwt(
         self, options: MetagraphRelaxOptions, wd=None
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, bytes, bytes]:
         """Run the metagraph `relax_brwt` command."""
         return self._execute(self._exe, "relax_brwt", options, wd)
 
@@ -194,7 +200,7 @@ class MetagraphCLI(CLIExecutor):
 class MetagraphPipeline:
     """Base class for metagraph CLI pipelines."""
 
-    def __init__(self, cli: MetagraphCLI, wd: str = None):
+    def __init__(self, cli: MetagraphCLI, wd: str | None = None):
         self._cli = cli
 
     @property
@@ -229,7 +235,17 @@ class MetagraphBuildPipeline(MetagraphPipeline):
         self, cli: MetagraphCLI, options: MetagraphBuildPipelineOptions | None = None
     ):
         super().__init__(cli)
-        self.options = options
+        self._options: MetagraphBuildPipelineOptions | None = options
+
+    @property
+    def options(self) -> MetagraphBuildPipelineOptions:
+        if self._options is None:
+            raise MetaPanG_ConfigError("Metagraph pipeline: options are not set")
+        return self._options
+
+    @options.setter
+    def options(self, value: MetagraphBuildPipelineOptions) -> None:
+        self._options = value
 
     def _basic_graph(self):
         opt = MetagraphBuildOptions(
@@ -404,7 +420,7 @@ class MetagraphBuildPipeline(MetagraphPipeline):
         if options is not None:
             self.options = options
 
-        if not self.options:
+        if self._options is None:
             raise MetaPanG_ConfigError("Metagraph pipeline: options are not set")
 
         if not Path(self.options.output_dir).exists():
@@ -420,7 +436,7 @@ class MetagraphBuildPipeline(MetagraphPipeline):
                 mp_log.info("Step 1. DBG Construction")
                 self._primary_graph()
                 t.step("primary graph")
-                mp_log.info(f"Step 1. Done {t.get_last_step().format()}")
+                mp_log.info(f"Step 1. Done {t.get_last_step().format()}")  # type: ignore[union-attr]
 
             mp_log.info("Step 2. DBG Annotation")
             match self.options.annotation_type:
@@ -465,4 +481,4 @@ class MetagraphBuildPipeline(MetagraphPipeline):
                     f"{self.options.output_dir}/{self.options.name}.dbg"
                 )
 
-            mp_log.info(f"Step 2. Done {t.get_last_step().format()}")
+            mp_log.info(f"Step 2. Done {t.get_last_step().format()}")  # type: ignore[union-attr]

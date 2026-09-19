@@ -19,7 +19,7 @@ class BoundedExecutorMixin:
     def submit(self, fn, *args, **kwargs):
         """Submit a job, blocking while the in-flight queue is full."""
         self._semaphore.acquire()
-        future = super().submit(fn, *args, **kwargs)
+        future = super().submit(fn, *args, **kwargs)  # type: ignore[misc]
         future.add_done_callback(self.release)
         return future
 

@@ -1,4 +1,5 @@
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from shutil import which
@@ -18,7 +19,7 @@ def is_executable(name: str) -> bool:
     return which(name) is not None
 
 
-def find_executable(name: str, extra: list[str | Path] | None = None) -> str:
+def find_executable(name: str, extra: Sequence[str | Path] | None = None) -> str:
     """Find the path to an executable in $PATH.
 
     Args:
@@ -80,7 +81,7 @@ class CLIField:
 
 
 def cli_field(
-    type_: type,
+    type_: Any,
     *,
     positional: bool = False,
     prefix: str = "--",
@@ -88,7 +89,7 @@ def cli_field(
     flag: bool = False,
     default: Any = None,
     stdin: bool = False,
-) -> CLIField:
+) -> Any:
     """Define a dataclass field carrying CLI argument metadata."""
     replace = {"_": "-"} if replace is None else replace
     f = CLIField(
@@ -184,7 +185,7 @@ class CLIExecutor:
         capture: bool = True,
         capture_stderr: bool = True,
         stdout_file=None,
-    ) -> tuple[int | None, bytes | None, bytes | None]:
+    ) -> tuple[int, bytes, bytes]:
         """Run `executable command <options>` and return (returncode, stdout, stderr).
 
         stdout is captured as bytes when `capture` is set, or redirected to
@@ -233,7 +234,7 @@ class CLIExecutor:
         mp_log.trace(
             f"Command outputs: {self._make_std_message(proc.stdout, proc.stderr, capture, capture_stderr)}"
         )
-        return proc.returncode, proc.stdout, proc.stderr
+        return proc.returncode, proc.stdout or b"", proc.stderr or b""
 
     def _make_std_message(
         self,

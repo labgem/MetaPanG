@@ -23,6 +23,7 @@ metagraph = "*"
 [feature.dev.dependencies]
 pre-commit = ">=4.1.0"
 ruff = ">=0.16"
+pyright = ">=1.1.390"
 ipython = "*"
 viztracer = ">=1.1.1"
 
@@ -31,6 +32,7 @@ format = "ruff format ."
 format-check = "ruff format --check ."
 lint = "ruff check ."
 lint-fix = "ruff check --fix ."
+typecheck = "pyright"
 
 [feature.doc.dependencies]
 sphinx = ">=8.1.3"

@@ -8,7 +8,7 @@ __version__ = "0.1.0"
 def _commit() -> str | None:
     """Return the git commit MetaPanG was built from (or is running from)."""
     try:
-        from metapang._commit import COMMIT
+        from metapang._commit import COMMIT  # type: ignore[import-not-found]
 
         return COMMIT or None
     except Exception:

@@ -606,7 +606,7 @@ def refine_abundances(selection: Selection, components: list[GeneSet]) -> Select
 def _all_strains(pwg: PWGraph) -> list[str]:
     """Strain labels from the per_organism_nodes graph property, else the sorted union of node strain lists."""
     per_org = pwg.graph_property(pw_graph_property.per_organism_nodes)
-    if per_org:
+    if isinstance(per_org, dict):
         return list(per_org.keys())
     g = pwg.graph
     strains_prop = g.vp[pw_node_property.strains.value]

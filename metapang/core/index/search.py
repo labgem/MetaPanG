@@ -97,10 +97,12 @@ class IndexSearch:
             case IndexType.pangenome:
                 if self.pangenome_index is None:
                     self._load_index(IndexType.pangenome)
+                assert self.pangenome_index is not None
                 return self.pangenome_index
             case IndexType.genome:
                 if self.genome_index is None:
                     self._load_index(IndexType.genome)
+                assert self.genome_index is not None
                 return self.genome_index
             case _:
                 raise ValueError(f"Invalid index type {str(index_type)}")
@@ -263,6 +265,7 @@ class IndexSearch:
                     best_m, best_ov, best_mh = m, ov, mh
             if best_m is None or best_ov == 0:
                 break
+            assert best_mh is not None
             remaining.remove_many(best_mh.hashes)
             out.append(
                 (

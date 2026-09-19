@@ -26,7 +26,7 @@ def check_path_exists(parent: str, paths: list[Path]):
             sys.exit(1)
 
 
-def search_input_files(input_path: str) -> list[tuple[str, list[str]]]:
+def search_input_files(input_path: Path) -> list[tuple[str, list[Path]]]:
     """Collect (pangenome_id, genome files) pairs from an input directory or TSV file."""
     pangenomes = []
     if input_path.is_dir():

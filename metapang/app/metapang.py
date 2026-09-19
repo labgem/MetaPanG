@@ -1,5 +1,6 @@
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 import msgspec
 import rich_click as click
@@ -27,7 +28,7 @@ def check_for_new_version() -> str:
         g = Github(timeout=0, retry=0)
         repo = g.get_repo("LABGeM/MetaPanG")
         latest_tag = repo.get_latest_release().tag_name
-        if semver.parse(latest_tag) > semver.parse(metapang_version):
+        if semver.compare(latest_tag, metapang_version) > 0:
             return f"(⚠️ Latest version is '{latest_tag}')"
         return "(✅ up-to-date)"
     except Exception:
@@ -132,7 +133,7 @@ def configure_help_and_defaults(command, config, sources, def_map):
                     def_map[command_name] = {}
                 def_map[command_name][param.name] = config[command_name][param.name]
             if (
-                hasattr(param, "help")
+                isinstance(param, click.Option)
                 and param.help
                 and "__placeholder__" in param.help
             ):
@@ -160,16 +161,16 @@ def metapang(ctx, config: str | None, log_file: str | None, verbosity: str) -> N
     [bold]Metagenomic classification using pangenome graphs[/]
     """
     metapang_setup_logger(level=verbosity.upper(), log_file=log_file)
-    config, sources = configuration(config or None)
+    cfg, sources = configuration(Path(config) if config else None)
     configure_help_and_defaults(
         ctx.command,
-        msgspec.to_builtins(config)["commands"],
+        msgspec.to_builtins(cfg)["commands"],
         sources["commands"],
         ctx.default_map,
     )
 
     ctx.obj = {}
-    ctx.obj["config"] = config
+    ctx.obj["config"] = cfg
     ctx.obj["sources"] = sources
 
 

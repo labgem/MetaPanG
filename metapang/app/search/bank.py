@@ -148,7 +148,7 @@ def bank(
         rows = search.gather_signature(
             signature, IndexType.genome, threshold=threshold_genome or 0.0
         )
-        df = pd.DataFrame(rows, columns=["name", "f_query", "f_match"])
+        df = pd.DataFrame(rows, columns=["name", "f_query", "f_match"])  # type: ignore[arg-type]
         if not df.empty:
             df["cum_f_query"] = df["f_query"].cumsum().round(4)
         out_path = (

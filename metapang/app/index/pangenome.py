@@ -30,7 +30,7 @@ click.rich_click.OPTION_GROUPS["metapang index pangenome"] = [
 
 
 def as_fasta(
-    input_files: list[str], temp_dir: Path, use_parent: bool = False
+    input_files: list[str | Path], temp_dir: Path, use_parent: bool = False
 ) -> list[str]:
     """Return the input files as fasta paths, converting non-fastx files as needed."""
     from metapang.utils.io import gbff_to_fasta
@@ -41,7 +41,7 @@ def as_fasta(
 
     for file in input_files:
         if is_fastx(file):
-            res.append(file)
+            res.append(str(file))
         else:
             out_fasta = (
                 out_dir
@@ -95,7 +95,7 @@ def prepare_pipeline_input(
         pipeline_input, temp_dir, use_parent=genome_name_from_parent_dir
     )
 
-    annotation_input = [temp_dir / f"{name}.fa"]
+    annotation_input = [str(temp_dir / f"{name}.fa")]
 
     return pipeline_input, annotation_input
 
@@ -234,7 +234,7 @@ def pangenome(
             kmer_size=kmer_size,
             parallel=threads,
             anno_header=True,
-            annotation_type=annotation_type,
+            annotation_type=annotation_type,  # type: ignore[arg-type]
         )
 
         mp_log.info("Constructing family annotated DBG...")

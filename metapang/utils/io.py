@@ -65,7 +65,7 @@ def zopen(
     compress: bool = False,
     ext: str = ".gz",
     **kwargs,
-) -> tp.Generator[tp.TextIO | tp.BinaryIO | gzip.GzipFile, None, None]:
+) -> tp.Generator[tp.Any, None, None]:
     """Context manager like open() but with optional gzip compression.
 
     Args:

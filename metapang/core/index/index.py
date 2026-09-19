@@ -266,7 +266,7 @@ class IndexBuilder:
         man = MinHashManager(ctx=_MP_CONTEXT)
         man.register("MinHash", MinHash)
         man.start()
-        m = man.MinHash(n=n, ksize=k, scaled=scaled)
+        m = man.MinHash(n=n, ksize=k, scaled=scaled)  # type: ignore[attr-defined]
 
         with BoundedProcessPoolExecutor(
             queue_size,
@@ -339,8 +339,8 @@ class IndexBuilder:
             )
             manager.start()
 
-        genome_sbt = manager.SBT(GraphFactory(1, 1e5, 4), d=2)
-        pangenome_sbt = manager.SBT(GraphFactory(1, 1e5, 4), d=2)
+        genome_sbt = manager.SBT(GraphFactory(1, 1e5, 4), d=2)  # type: ignore[attr-defined]
+        pangenome_sbt = manager.SBT(GraphFactory(1, 1e5, 4), d=2)  # type: ignore[attr-defined]
 
         info = IndexInfo(
             self._config.genome_index_name,
