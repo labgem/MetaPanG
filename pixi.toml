@@ -20,10 +20,24 @@ PATH = "$PATH:$PIXI_PROJECT_ROOT/.pixi/envs/metagraph/bin"
 [feature.mg.dependencies]
 metagraph = "*"
 
+[feature.dev.dependencies]
+pre-commit = ">=4.1.0"
+black = "*"
+ipython = "*"
+viztracer = ">=1.1.1"
+
+[feature.doc.dependencies]
+sphinx = ">=8.1.3"
+furo = ">=2024.8.6"
+myst-parser = ">=4.0.1"
+sphinx-copybutton = ">=0.5.2"
+
 [environments]
 default = ["app"]
 metagraph = ["mg"]
+dev = ["app", "dev", "doc"]
 
 [tasks]
 metapang = "metapang"
 test = "pytest"
+docs = "sphinx-build -b html docs docs/_build/html"

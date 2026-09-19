@@ -55,7 +55,7 @@ for you, in two isolated environments wired together, so the manual `metagraph`
 step above is not needed:
 
 ```
-pixi install
+pixi install --all
 pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
