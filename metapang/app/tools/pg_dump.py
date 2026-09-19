@@ -1,9 +1,10 @@
 import logging
 from pathlib import Path
+
 import rich_click as click
 
 from metapang.logger import mp_log
-from metapang.pg.dump import pg_gene_from_h5, pg_repr_from_h5, pg_fam_from_h5
+from metapang.pg.dump import pg_fam_from_h5, pg_gene_from_h5, pg_repr_from_h5
 
 
 @click.group()
@@ -106,4 +107,3 @@ def fams(pangenome, compress, filter, output, split) -> None:
 pg_dump.add_command(genes)
 pg_dump.add_command(reprs)
 pg_dump.add_command(fams)
-

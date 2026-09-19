@@ -1,46 +1,56 @@
-
-from pathlib import Path
-from enum import Enum
-from sourmash import load_file_as_index
-from sourmash import SourmashSignature
-from sourmash.index import IndexSearchResult
-from metapang.core.index.index import IndexBuilder, IndexInfo
-from metapang.exceptions import check_paths_exist
-from typing import Optional
 from dataclasses import dataclass
-from typing import List
+from enum import Enum
+from pathlib import Path
+
 import pandas as pd
 import sourmash.index
-import msgspec
+from sourmash import SourmashSignature, load_file_as_index
+from sourmash.index import IndexSearchResult
+
+from metapang.core.index.index import IndexBuilder, IndexInfo
+from metapang.exceptions import check_paths_exist
+
 
 class SearchMode(Enum):
     """Search modes: Jaccard similarity, containment, or max containment."""
+
     jaccard = 1
     containment = 2
     max_containment = 3
 
+
 @dataclass
 class SearchResult:
     """A single search result: query name, matched name, score, and coverage."""
+
     query_name: str
     name: str
     score: float
     coverage: float
 
     @staticmethod
-    def to_dataframe(results: List["SearchResult"]) -> pd.DataFrame:
+    def to_dataframe(results: list["SearchResult"]) -> pd.DataFrame:
         """Convert a list of SearchResult objects to a pandas DataFrame."""
         return pd.DataFrame([r.__dict__ for r in results])
 
+
 class IndexType(Enum):
     """Index types: pangenome, genome, or all."""
+
     pangenome = 1
     genome = 2
     all = 3
 
+
 class IndexSearch:
     """Search sequences, genomes, or signatures in a MetaPanG index."""
-    def __init__(self, index_directory: Path, to_load: Optional[IndexType]=IndexType.all, info_filename: str = "index_info.json") -> None:
+
+    def __init__(
+        self,
+        index_directory: Path,
+        to_load: IndexType | None = IndexType.all,
+        info_filename: str = "index_info.json",
+    ) -> None:
         """Open a MetaPanG index directory.
 
         Args:
@@ -63,9 +73,13 @@ class IndexSearch:
     def _load_index(self, index_type: IndexType) -> None:
         match index_type:
             case IndexType.pangenome | IndexType.all:
-                self.pangenome_index = load_file_as_index(str(self._index_path(IndexType.pangenome)))
+                self.pangenome_index = load_file_as_index(
+                    str(self._index_path(IndexType.pangenome))
+                )
             case IndexType.genome | IndexType.all:
-                self.genome_index = load_file_as_index(str(self._index_path(IndexType.genome)))
+                self.genome_index = load_file_as_index(
+                    str(self._index_path(IndexType.genome))
+                )
 
     def _index_path(self, index_type: IndexType) -> Path:
         match index_type:
@@ -91,45 +105,109 @@ class IndexSearch:
             case _:
                 raise ValueError(f"Invalid index type {str(index_type)}")
 
-    def _search_results(self, query_signature: SourmashSignature, results: List[IndexSearchResult]) -> List[SearchResult]:
-        return [SearchResult(query_signature.name, r.signature.name, round(r.score, 4), round(r.signature.similarity(query_signature), 4)) for r in results]
+    def _search_results(
+        self, query_signature: SourmashSignature, results: list[IndexSearchResult]
+    ) -> list[SearchResult]:
+        return [
+            SearchResult(
+                query_signature.name,
+                r.signature.name,
+                round(r.score, 4),
+                round(r.signature.similarity(query_signature), 4),
+            )
+            for r in results
+        ]
 
-    def search_sequence_p(self, name: str, sequence: str, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_sequence_p(
+        self,
+        name: str,
+        sequence: str,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Search a sequence in the pangenome index (wraps search_sequence with IndexType.pangenome)."""
-        return self.search_sequence(name, sequence, IndexType.pangenome, mode, threshold)
+        return self.search_sequence(
+            name, sequence, IndexType.pangenome, mode, threshold
+        )
 
-    def search_sequence_g(self, name: str, sequence: str, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_sequence_g(
+        self,
+        name: str,
+        sequence: str,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Search a sequence in the genome index (wraps search_sequence with IndexType.genome)."""
         return self.search_sequence(name, sequence, IndexType.genome, mode, threshold)
 
-    def search_sequence(self, name: str, sequence: str, index_type: IndexType, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_sequence(
+        self,
+        name: str,
+        sequence: str,
+        index_type: IndexType,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Sketch a sequence and search it in the given index.
 
         Returns:
             One SearchResult per match, possibly empty.
         """
-        sig = IndexBuilder.sequence_signature(name, sequence, k=self.info.kmer_size, n=self.info.n, scaled=self.info.scaled)
+        sig = IndexBuilder.sequence_signature(
+            name,
+            sequence,
+            k=self.info.kmer_size,
+            n=self.info.n,
+            scaled=self.info.scaled,
+        )
         return self.search_signature(sig, index_type, mode, threshold)
 
-    def search_genome_p(self, name: str, genome: Path, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_genome_p(
+        self,
+        name: str,
+        genome: Path,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Search a genome in the pangenome index (wraps search_genome with IndexType.pangenome)."""
         return self.search_genome(name, genome, IndexType.pangenome, mode, threshold)
 
-    def search_genome_g(self, name: str, genome: Path, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_genome_g(
+        self,
+        name: str,
+        genome: Path,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Search a genome in the genome index (wraps search_genome with IndexType.genome)."""
         return self.search_genome(name, genome, IndexType.genome, mode, threshold)
 
-    def search_genome(self, name: str, genome: Path, index_type: IndexType, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_genome(
+        self,
+        name: str,
+        genome: Path,
+        index_type: IndexType,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Sketch a genome file and search it in the given index.
 
         Returns:
             One SearchResult per match, possibly empty.
         """
         print(self.info.kmer_size, self.info.n, self.info.scaled)
-        sig = IndexBuilder.file_signature(name, genome, k=self.info.kmer_size, n=self.info.n, scaled=self.info.scaled)
+        sig = IndexBuilder.file_signature(
+            name, genome, k=self.info.kmer_size, n=self.info.n, scaled=self.info.scaled
+        )
         return self.search_signature(sig, index_type, mode, threshold)
 
-    def search_signature(self, signature: SourmashSignature, index_type: IndexType, mode: SearchMode=SearchMode.jaccard, threshold: Optional[float]=0.01) -> List[SearchResult]:
+    def search_signature(
+        self,
+        signature: SourmashSignature,
+        index_type: IndexType,
+        mode: SearchMode = SearchMode.jaccard,
+        threshold: float | None = 0.01,
+    ) -> list[SearchResult]:
         """Search a signature in the given index.
 
         Returns:
@@ -149,8 +227,12 @@ class IndexSearch:
         )
         return self._search_results(signature, res)
 
-    def gather_signature(self, signature: SourmashSignature, index_type: IndexType,
-                         threshold: float = 0.0) -> List[tuple]:
+    def gather_signature(
+        self,
+        signature: SourmashSignature,
+        index_type: IndexType,
+        threshold: float = 0.0,
+    ) -> list[tuple]:
         """Greedy min-set-cover (gather) over the index.
 
         Returns:
@@ -164,10 +246,13 @@ class IndexSearch:
             return []
 
         remaining = query_mh.to_mutable()
-        out: List[tuple] = []
+        out: list[tuple] = []
         while len(remaining) > 0:
-            matches = index.search(SourmashSignature(remaining.to_frozen()),
-                                   threshold=threshold, do_containment=True)
+            matches = index.search(
+                SourmashSignature(remaining.to_frozen()),
+                threshold=threshold,
+                do_containment=True,
+            )
             if not matches:
                 break
             best_m, best_ov, best_mh = None, 0, None
@@ -179,12 +264,11 @@ class IndexSearch:
             if best_m is None or best_ov == 0:
                 break
             remaining.remove_many(best_mh.hashes)
-            out.append((best_m.signature.name,
-                        round(best_ov / total, 4),
-                        round(best_ov / len(best_mh), 4) if len(best_mh) else 0.0))
+            out.append(
+                (
+                    best_m.signature.name,
+                    round(best_ov / total, 4),
+                    round(best_ov / len(best_mh), 4) if len(best_mh) else 0.0,
+                )
+            )
         return out
-
-
-
-
-

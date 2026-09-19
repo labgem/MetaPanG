@@ -1,13 +1,15 @@
-from typing import Type, Any
-from shutil import which
+import subprocess
+from dataclasses import dataclass, field, fields
 from pathlib import Path
+from shutil import which
+from typing import Any
+
 from metapang.exceptions import (
-    MetaPanG_MissingTool,
-    MetaPanG_MissingResource,
     MetaPanG_ExternalError,
+    MetaPanG_MissingResource,
+    MetaPanG_MissingTool,
 )
 from metapang.logger import mp_log
-from dataclasses import dataclass, field, fields
 
 
 def is_executable(name: str) -> bool:
@@ -16,7 +18,7 @@ def is_executable(name: str) -> bool:
     return which(name) is not None
 
 
-def find_executable(name: str, extra: list[str | Path] = []) -> str:
+def find_executable(name: str, extra: list[str | Path] | None = None) -> str:
     """Find the path to an executable in $PATH.
 
     Args:
@@ -28,7 +30,7 @@ def find_executable(name: str, extra: list[str | Path] = []) -> str:
     if exe := which(name):
         return exe
 
-    for path in extra:
+    for path in extra or []:
         if exe := which(name, path=str(path)):
             return exe
 
@@ -48,9 +50,10 @@ def find_metapang_resource(name: str) -> Path:
 
 class CLIField:
     """Metadata describing how a dataclass field maps to a CLI argument."""
+
     def __init__(
         self,
-        type_: Type,
+        type_: type,
         *,
         value: Any,
         positional: bool,
@@ -81,12 +84,13 @@ def cli_field(
     *,
     positional: bool = False,
     prefix: str = "--",
-    replace: dict[str, str] = {"_": "-"},
+    replace: dict[str, str] | None = None,
     flag: bool = False,
     default: Any = None,
     stdin: bool = False,
 ) -> CLIField:
     """Define a dataclass field carrying CLI argument metadata."""
+    replace = {"_": "-"} if replace is None else replace
     f = CLIField(
         type_=type_,
         value=default,
@@ -100,15 +104,16 @@ def cli_field(
     return field(default=default, metadata={"cli": f})
 
 
-def cli_dataclass(cls: Type) -> Type:
+def cli_dataclass(cls: type) -> type:
     """Class decorator turning a dataclass into a CLI-argument builder."""
+
     def __post_init__(self):
         cli_fields = {}
         for f in fields(self):
             meta = f.metadata.get("cli")
             if meta:
                 cli_fields[f.name] = meta
-        setattr(self, "_cli_fields", cli_fields)
+        self._cli_fields = cli_fields
 
     def get_cli_options(self) -> list[str]:
         """Return the non-positional CLI flags and options for the current field values."""
@@ -167,9 +172,6 @@ def cli_dataclass(cls: Type) -> Type:
     return dataclass(cls)
 
 
-import subprocess
-
-
 class CLIExecutor:
     """Builds and runs external command-line tools via subprocess."""
 
@@ -215,7 +217,9 @@ class CLIExecutor:
                 stderr=stderr_target,
             )
         except OSError as e:
-            raise MetaPanG_ExternalError(f"Failed to run '{exec_name} {command}': {e}") from e
+            raise MetaPanG_ExternalError(
+                f"Failed to run '{exec_name} {command}': {e}"
+            ) from e
 
         if proc.returncode != 0:
             raise MetaPanG_ExternalError(
@@ -223,15 +227,20 @@ class CLIExecutor:
                 + self._make_std_message(proc.stdout, proc.stderr)
             )
 
-        mp_log.debug(f"Command executed successfully: {exec_name} {command} (rc={proc.returncode}).")
+        mp_log.debug(
+            f"Command executed successfully: {exec_name} {command} (rc={proc.returncode})."
+        )
         mp_log.trace(
             f"Command outputs: {self._make_std_message(proc.stdout, proc.stderr, capture, capture_stderr)}"
         )
         return proc.returncode, proc.stdout, proc.stderr
 
     def _make_std_message(
-        self, stdout: bytes | None, stderr: bytes | None,
-        with_stdout: bool = True, with_stderr: bool = True,
+        self,
+        stdout: bytes | None,
+        stderr: bytes | None,
+        with_stdout: bool = True,
+        with_stderr: bool = True,
     ) -> str:
         """Format captured stdout/stderr bytes into a readable diagnostic block."""
         msg = ""

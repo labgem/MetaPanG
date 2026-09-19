@@ -1,12 +1,13 @@
+import contextlib
+import gzip
 import os
 import sys
-import gzip
-import contextlib
-from typing import Type
 import typing as tp
-from pathlib import Path
 from itertools import chain
+from pathlib import Path
+
 import gb_io
+
 from metapang.exceptions import MetaPanG_IoError
 
 FASTA_GLOB = [
@@ -17,12 +18,12 @@ FASTA_GLOB = [
     "*.fna.gz",
     "*.fasta.gz",
     "*.gbff",
-    "*.gbff.gz"
+    "*.gbff.gz",
 ]
 
 
 @contextlib.contextmanager
-def silence(stdout: bool=True, stderr: bool=True):
+def silence(stdout: bool = True, stderr: bool = True):
     """Context manager to suppress stdout and/or stderr."""
     if stdout and stderr:
         with (
@@ -59,7 +60,11 @@ def smart_io(filename: str = "") -> tp.Generator[tp.TextIO, None, None]:
 
 @contextlib.contextmanager
 def zopen(
-    filename: str | Path, mode: str = "r", compress: bool = False, ext: str = ".gz", **kwargs
+    filename: str | Path,
+    mode: str = "r",
+    compress: bool = False,
+    ext: str = ".gz",
+    **kwargs,
 ) -> tp.Generator[tp.TextIO | tp.BinaryIO | gzip.GzipFile, None, None]:
     """Context manager like open() but with optional gzip compression.
 
@@ -93,7 +98,7 @@ def get_files_from_directory(
     directory: str | Path,
     *,
     glob: str | list[str] = "*",
-    path_type: Type = Path,
+    path_type: type = Path,
     recursive: bool = True,
 ) -> list[Path | str]:
     """List files in a directory matching one or more globs.
@@ -126,7 +131,7 @@ def get_files_from_directory(
     return list(set(res))
 
 
-def get_files_from_fof(path: str | Path, *, path_type: Type = Path) -> list[Path | str]:
+def get_files_from_fof(path: str | Path, *, path_type: type = Path) -> list[Path | str]:
     """Read file paths listed in a file of files.
 
     Args:
@@ -141,7 +146,7 @@ def get_files_from_fof(path: str | Path, *, path_type: Type = Path) -> list[Path
         raise MetaPanG_IoError(f"Path does not exist: {path}")
 
     res = []
-    with open(path, "r") as f:
+    with open(path) as f:
         for line in f.readlines():
             if not line.strip():
                 continue

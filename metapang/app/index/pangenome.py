@@ -3,36 +3,35 @@ from pathlib import Path
 
 import rich_click as click
 
-from metapang.logger import mp_log
-from metapang.utils.time import timer
-from metapang.pg.dump import pg_fam_from_h5
-from metapang.core.index.dbg import MetagraphCLI
-from metapang.core.index.dbg import MetagraphBuildPipeline, MetagraphBuildPipelineOptions
-from metapang.utils.io import get_files_from_directory, get_files_from_fof, FASTA_GLOB, is_fastx
 from metapang.core.graph import PWGraph
+from metapang.core.index.dbg import (
+    MetagraphBuildPipeline,
+    MetagraphBuildPipelineOptions,
+    MetagraphCLI,
+)
+from metapang.logger import mp_log
+from metapang.pg.dump import pg_fam_from_h5
+from metapang.utils.io import (
+    FASTA_GLOB,
+    get_files_from_directory,
+    get_files_from_fof,
+    is_fastx,
+)
+from metapang.utils.time import timer
 
 click.rich_click.OPTION_GROUPS["metapang index pangenome"] = [
-    {
-        "name": "Required",
-        "options": [
-            "--pangenome", "--genomes", "--name", "--output"
-        ]
-    },
+    {"name": "Required", "options": ["--pangenome", "--genomes", "--name", "--output"]},
     {
         "name": "Options",
-        "options": [
-            "--tmp", "--genome-name-from-parent-dir", "--threads", "--help"
-        ]
+        "options": ["--tmp", "--genome-name-from-parent-dir", "--threads", "--help"],
     },
-    {
-        "name": "Advanced",
-        "options": [
-            "--kmer-size", "--annotation-type", "--filter"
-        ]
-    }
+    {"name": "Advanced", "options": ["--kmer-size", "--annotation-type", "--filter"]},
 ]
 
-def as_fasta(input_files: list[str], temp_dir: Path, use_parent: bool=False) -> list[str]:
+
+def as_fasta(
+    input_files: list[str], temp_dir: Path, use_parent: bool = False
+) -> list[str]:
     """Return the input files as fasta paths, converting non-fastx files as needed."""
     from metapang.utils.io import gbff_to_fasta
 
@@ -44,11 +43,17 @@ def as_fasta(input_files: list[str], temp_dir: Path, use_parent: bool=False) -> 
         if is_fastx(file):
             res.append(file)
         else:
-            out_fasta = out_dir / f"{Path(file).name if not use_parent else Path(file).parent.name}.fa"
-            mp_log.warning(f"Converting '{Path(file).parent.name}/{Path(file).name}' to fasta: '{out_fasta.parent.name}/{out_fasta.name}'")
+            out_fasta = (
+                out_dir
+                / f"{Path(file).name if not use_parent else Path(file).parent.name}.fa"
+            )
+            mp_log.warning(
+                f"Converting '{Path(file).parent.name}/{Path(file).name}' to fasta: '{out_fasta.parent.name}/{out_fasta.name}'"
+            )
             gbff_to_fasta(file, out_fasta)
             res.append(str(out_fasta))
     return res
+
 
 def construct_pwg(pangenome: Path, output_directory: Path, name: str):
     """Build and save the graph_tool representation of a pangenome."""
@@ -59,50 +64,69 @@ def construct_pwg(pangenome: Path, output_directory: Path, name: str):
         pg.save(out)
         mp_log.info(f"Done - {t.format()}")
 
-def prepare_pipeline_input(pangenome, genomes, name: str, temp_dir: Path, filter: str, genome_name_from_parent_dir: bool):
+
+def prepare_pipeline_input(
+    pangenome,
+    genomes,
+    name: str,
+    temp_dir: Path,
+    filter: str,
+    genome_name_from_parent_dir: bool,
+):
     """Extract pangenome sequences and gather genome fasta inputs for the build pipeline."""
     mp_log.info(f"Input genomes: '{genomes}'")
 
     with timer() as t:
         mp_log.info(f"Extracting sequences from '{pangenome}' (partition='{filter}')")
         output_path = temp_dir / f"{name}.fa"
-        pg_fam_from_h5(pangenome, output_path, compress=False, split=False, filter=filter)
+        pg_fam_from_h5(
+            pangenome, output_path, compress=False, split=False, filter=filter
+        )
         mp_log.info(f"Done - {t.format()}")
 
     if genomes.is_file():
         pipeline_input = get_files_from_fof(genomes, path_type=str)
     else:
-        pipeline_input = get_files_from_directory(genomes, glob=FASTA_GLOB, path_type=str, recursive=True)
+        pipeline_input = get_files_from_directory(
+            genomes, glob=FASTA_GLOB, path_type=str, recursive=True
+        )
 
-    pipeline_input = as_fasta(pipeline_input, temp_dir, use_parent=genome_name_from_parent_dir)
+    pipeline_input = as_fasta(
+        pipeline_input, temp_dir, use_parent=genome_name_from_parent_dir
+    )
 
     annotation_input = [temp_dir / f"{name}.fa"]
 
     return pipeline_input, annotation_input
 
+
 @click.command()
 @click.option(
-    "--pangenome", "-p",
-    type=click.Path(path_type=Path, exists=True, readable=True), required=True,
-    help="Path to the pangenome file (.h5)."
+    "--pangenome",
+    "-p",
+    type=click.Path(path_type=Path, exists=True, readable=True),
+    required=True,
+    help="Path to the pangenome file (.h5).",
 )
 @click.option(
-    "--output", "-o",
-    type=click.Path(dir_okay=True, path_type=Path, writable=True), required=True,
-    help="Path to output directory"
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=True, path_type=Path, writable=True),
+    required=True,
+    help="Path to output directory",
 )
 @click.option(
-    "--name", "-n", required=True,
-    type=str,
-    help="Name of the pangenome to index"
+    "--name", "-n", required=True, type=str, help="Name of the pangenome to index"
 )
 @click.option(
-    "--kmer-size", "-k",
+    "--kmer-size",
+    "-k",
     type=int,
-    help="K-mer size to use for indexing __placeholder__."
+    help="K-mer size to use for indexing __placeholder__.",
 )
 @click.option(
-    "--annotation-type", "-a",
+    "--annotation-type",
+    "-a",
     type=click.Choice(["rainbowfish", "rd_brwt", "rd_sparse"]),
     help="""
         \b
@@ -114,31 +138,34 @@ def prepare_pipeline_input(pangenome, genomes, name: str, temp_dir: Path, filter
             - [bold]rd_sparse[/]
         \b
         ▪ See [link=https://metagraph.ethz.ch/static/docs/quick_start.html#annotate-graph]Metagraph annotation[/] for details.
-    """
+    """,
 )
 @click.option(
-    "--threads", "-t",
-    type=int,
-    help="Number of threads to use __placeholder__."
+    "--threads", "-t", type=int, help="Number of threads to use __placeholder__."
 )
 @click.option(
-    "--tmp", "-d",
+    "--tmp",
+    "-d",
     type=click.Path(dir_okay=True, path_type=Path, writable=True),
-    help="Temporary directory for intermediate files __placeholder__."
+    help="Temporary directory for intermediate files __placeholder__.",
 )
 @click.option(
-    "--filter", "-f",
+    "--filter",
+    "-f",
     type=click.Choice(["persistent", "shell", "cloud", "all"]),
     help="Pangenome partition filter __placeholder__.",
 )
 @click.option(
     "--genome-name-from-parent-dir",
-    is_flag=True, default=False,
+    is_flag=True,
+    default=False,
     help="Use the parent directory name as genome name instead of the file name __placeholder__.",
 )
 @click.option(
-    "--genomes", "-g",
-    type=click.Path(path_type=Path, exists=True, readable=True), required=True,
+    "--genomes",
+    "-g",
+    type=click.Path(path_type=Path, exists=True, readable=True),
+    required=True,
     help="""
         \b
         File of files or a directory path.\n
@@ -151,17 +178,27 @@ def prepare_pipeline_input(pangenome, genomes, name: str, temp_dir: Path, filter
             [bold]genome_directory/[/]
             ├── [bold]genome_1.\\[fna|fa|fasta|gbff]\\[.gz][/]
             └── [bold]genome_2.\\[fna|fa|fasta|gbff]\\[.gz][/]
-    """
+    """,
 )
 @click.option(
     "--construct-graph",
-    is_flag=True, default=False,
-    help="Construct the graph_tool graph representation"
+    is_flag=True,
+    default=False,
+    help="Construct the graph_tool graph representation",
 )
-def pangenome(pangenome: Path, name: str, output: Path,
-              kmer_size: int, annotation_type: str, threads: int,
-              tmp: Path, filter: str,
-              genome_name_from_parent_dir: bool, genomes: Path, construct_graph: bool) -> None:
+def pangenome(
+    pangenome: Path,
+    name: str,
+    output: Path,
+    kmer_size: int,
+    annotation_type: str,
+    threads: int,
+    tmp: Path,
+    filter: str,
+    genome_name_from_parent_dir: bool,
+    genomes: Path,
+    construct_graph: bool,
+) -> None:
     """
     [bold]Index a pangenome as a colored DBG (using [link=https://metagraph.ethz.ch/static/docs/index.html]Metagraph[/]).[/]
 
@@ -183,12 +220,7 @@ def pangenome(pangenome: Path, name: str, output: Path,
             construct_pwg(pangenome, output, name)
 
         pipeline_input, annotation_input = prepare_pipeline_input(
-            pangenome,
-            genomes,
-            name,
-            temp_dir,
-            filter,
-            genome_name_from_parent_dir
+            pangenome, genomes, name, temp_dir, filter, genome_name_from_parent_dir
         )
 
         pipeline = MetagraphBuildPipeline(metagraph)
@@ -211,11 +243,10 @@ def pangenome(pangenome: Path, name: str, output: Path,
         options.annotation_inputs = pipeline_input
         options.anno_filename = True
         options.anno_header = False
-        options.suffix="_genomes"
+        options.suffix = "_genomes"
 
         mp_log.info("Constructing genome annotated DBG...")
         pipeline.run(options, skip_graph=True, move_graph=True)
-
 
     mp_log.info(f"Indexing done, outputs are available at '{output / name}'")
     mp_log.info(f"Total time: {tt.format()}")

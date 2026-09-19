@@ -4,14 +4,14 @@ from scipy.optimize import nnls
 
 from metapang.core.profile.mixture import Mixture
 from metapang.core.profile.strains import (
-    StrainProfileConfig,
+    GreedyStrainSelector,
     Selection,
+    StrainProfileConfig,
+    _nnls_via_gram,
+    build_mixture,
     collapse_columns,
     kstar_one_se,
     kstar_paired,
-    _nnls_via_gram,
-    GreedyStrainSelector,
-    build_mixture,
     profile_strains,
 )
 
@@ -33,9 +33,7 @@ def test_empty_selection():
 
 
 def test_collapse_merges():
-    m = np.array([[1.0, 1.0, 0.0],
-                  [1.0, 1.0, 1.0],
-                  [0.0, 0.0, 1.0]])
+    m = np.array([[1.0, 1.0, 0.0], [1.0, 1.0, 1.0], [0.0, 0.0, 1.0]])
     mix = Mixture(m=m, y=np.array([2.0, 4.0, 3.0]), strain_labels=["A", "B", "C"])
     reduced, groups = collapse_columns(mix, jaccard=0.95)
     assert reduced.n_strains == 2
@@ -49,7 +47,10 @@ def test_collapse_keeps_distinct():
     mix = Mixture(m=m, y=np.array([1.0, 1.0, 1.0]), strain_labels=["A", "B"])
     reduced, groups = collapse_columns(mix, jaccard=0.95)
     assert reduced.n_strains == 2
-    assert {frozenset(v) for v in groups.values()} == {frozenset(["A"]), frozenset(["B"])}
+    assert {frozenset(v) for v in groups.values()} == {
+        frozenset(["A"]),
+        frozenset(["B"]),
+    }
 
 
 def test_kstar_one_se():
@@ -116,16 +117,29 @@ def test_build_mixture(toy_pwg):
 def test_profile_two_strains(toy_pwg):
     nids, strains, parts, weights = [], [], [], []
     for i in range(10):
-        nids.append(f"privA{i}"); strains.append(["A"]); parts.append("S"); weights.append(4.0)
+        nids.append(f"privA{i}")
+        strains.append(["A"])
+        parts.append("S")
+        weights.append(4.0)
     for i in range(10):
-        nids.append(f"privB{i}"); strains.append(["B"]); parts.append("S"); weights.append(6.0)
+        nids.append(f"privB{i}")
+        strains.append(["B"])
+        parts.append("S")
+        weights.append(6.0)
     for i in range(10):
-        nids.append(f"core{i}"); strains.append(["A", "B", "C"]); parts.append("P"); weights.append(10.0)
+        nids.append(f"core{i}")
+        strains.append(["A", "B", "C"])
+        parts.append("P")
+        weights.append(10.0)
     for i in range(5):
-        nids.append(f"privC{i}"); strains.append(["C"]); parts.append("S"); weights.append(0.0)
+        nids.append(f"privC{i}")
+        strains.append(["C"])
+        parts.append("S")
+        weights.append(0.0)
 
-    pwg = toy_pwg(nids=nids, strains_per_node=strains, partitions=parts,
-                  weights=weights, edges=[])
+    pwg = toy_pwg(
+        nids=nids, strains_per_node=strains, partitions=parts, weights=weights, edges=[]
+    )
     prof = profile_strains(pwg, config=StrainProfileConfig())
 
     assert prof.k == 2

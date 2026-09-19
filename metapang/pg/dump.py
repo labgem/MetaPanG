@@ -1,12 +1,16 @@
-from metapang.utils.io import zopen
+import os
+from collections import defaultdict
+from pathlib import Path
 
 import tables
-from pathlib import Path
+
+from metapang.utils.io import zopen
 
 
 def get_gene_families(h5f: tables.File, families: set) -> tuple[set, dict]:
     """Return the genes belonging to the given families and a gene-to-family mapping."""
     from ppanggolin.formats.readBinaries import read_chunks
+
     matching_genes = set()
 
     gene_fam_table = h5f.root.geneFamilies
@@ -17,10 +21,6 @@ def get_gene_families(h5f: tables.File, families: set) -> tuple[set, dict]:
             mapping[row["gene"]] = row["geneFam"]
             matching_genes.add(row["gene"])
     return matching_genes, mapping
-
-
-from collections import defaultdict
-import os
 
 
 def pg_fam_from_h5(
@@ -75,14 +75,14 @@ def pg_fam_from_h5(
                     f"{output}/{k.decode()}.fa", mode="w", compress=compress
                 ) as fout:
                     for x in v:
-                        fout.write(f">{k.decode()}\n") # type: ignore
+                        fout.write(f">{k.decode()}\n")  # type: ignore
                         fout.write(x.decode() + "\n")
         else:
             with zopen(output, mode="wt", compress=compress) as fout:
                 for row in read_chunks(sequences, chunk=10000):
                     fout.write(
-                        f">{gene_fam_map[row['seqid']].decode()}\n{row['dna'].decode()}\n" # type: ignore
-                    ) # type: ignore
+                        f">{gene_fam_map[row['seqid']].decode()}\n{row['dna'].decode()}\n"  # type: ignore
+                    )  # type: ignore
 
 
 def pg_gene_from_h5(
@@ -94,8 +94,11 @@ def pg_gene_from_h5(
         filter: Partition filter in ["persistent", "shell", "cloud", "all"].
     """
     from ppanggolin.formats.readBinaries import (
-        get_families_matching_partition, get_seqid_to_genes,
-        write_genes_seq_from_pangenome_file)
+        get_families_matching_partition,
+        get_seqid_to_genes,
+        write_genes_seq_from_pangenome_file,
+    )
+
     with tables.open_file(str(pangenome), "r", driver_core_backing_store=0) as h5:
         if filter in ("persistent", "shell", "cloud"):
             fam = get_families_matching_partition(h5, filter)
@@ -120,8 +123,11 @@ def pg_repr_from_h5(
         filter: Partition filter in ["persistent", "shell", "cloud", "all"].
     """
     from ppanggolin.formats.readBinaries import (
-        get_families_matching_partition, get_seqid_to_genes,
-        write_genes_seq_from_pangenome_file)
+        get_families_matching_partition,
+        get_seqid_to_genes,
+        write_genes_seq_from_pangenome_file,
+    )
+
     with tables.open_file(str(pangenome), "r", driver_core_backing_store=0) as h5:
         fam = get_families_matching_partition(h5, filter)
         seq_id = get_seqid_to_genes(h5, set(fam), disable_bar=True)

@@ -2,7 +2,10 @@ import graph_tool.all as gt
 import pytest
 
 from metapang.core.graph import (
-    PWGraph, pw_node_property, pw_node_property_type, pw_graph_property_type,
+    PWGraph,
+    pw_graph_property_type,
+    pw_node_property,
+    pw_node_property_type,
 )
 
 

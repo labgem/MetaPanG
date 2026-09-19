@@ -1,24 +1,28 @@
-from metapang.config import PanGBank_Config
-from metapang.exceptions import MetaPanG_Error
-from metapang.utils import parse_version
-from pathlib import Path
-from dataclasses import dataclass
-import httpx
+import json
 import typing as tp
+from dataclasses import dataclass
+from pathlib import Path
+
+import httpx
 from rich.progress import (
-    Progress,
     BarColumn,
     DownloadColumn,
-    TransferSpeedColumn,
+    Progress,
     TimeRemainingColumn,
+    TransferSpeedColumn,
 )
+
+from metapang.config import PanGBank_Config
+from metapang.exceptions import MetaPanG_Error
 from metapang.logger import mp_log_trace
+from metapang.utils import parse_version
 from metapang.utils.filelock import FileLock
-import json
+
 
 @dataclass(slots=True, frozen=True)
 class CollectionRelease:
     """A single versioned release of a PanGBank collection."""
+
     name: str
     version: str
     latest: bool
@@ -36,9 +40,11 @@ class CollectionRelease:
     def full_name(self) -> str:
         return f"{self.name}@{self.version}"
 
+
 @dataclass(slots=True, frozen=True)
 class CollectionReleases:
     """All releases of a PanGBank collection, sorted by version."""
+
     name: str
     releases: list[CollectionRelease]
 
@@ -55,10 +61,13 @@ class CollectionReleases:
                 pangbank_wf_version=release["pangbank_wf_version"],
                 taxonomy=release["taxonomy_source"]["name"],
                 taxonomy_version=release["taxonomy_source"]["version"],
-                nb_pangenomes=release["pangenome_count"]
-            ) for release in collection["releases"]
+                nb_pangenomes=release["pangenome_count"],
+            )
+            for release in collection["releases"]
         ]
-        collection_releases = sorted(collection_releases, key=lambda r: parse_version(r.version))
+        collection_releases = sorted(
+            collection_releases, key=lambda r: parse_version(r.version)
+        )
         return cls(name=collection["name"], releases=collection_releases)
 
     @property
@@ -68,6 +77,7 @@ class CollectionReleases:
 
     def __len__(self) -> int:
         return len(self.releases)
+
 
 def parse_collection_name_version(collection: str) -> tuple[str, str, str | None]:
     """Parse a "name@version:pangenome" spec into (name, version or "latest", pangenome or None)."""
@@ -85,12 +95,16 @@ def parse_collection_name_version(collection: str) -> tuple[str, str, str | None
         else:
             return collection, "latest", None
 
+
 class PanGBank_APIError(MetaPanG_Error):
     """Error raised for PanGBank API failures."""
+
     pass
+
 
 class PanGBank_API:
     """PanGBank API wrapper, limited to the routes MetaPanG needs."""
+
     PROGRESS_COLUMNS = [
         BarColumn(),
         "[progress.description]{task.description}",
@@ -123,7 +137,6 @@ class PanGBank_API:
                     progress.update(task, advance=len(chunk))
         return out
 
-
     def _fetch_file_locked(self, url: str, out: Path, info: str = "") -> Path:
         with FileLock(out) as fl:
             return fl.download(lambda tmp: self._fetch_file(url, tmp, info))[0]
@@ -146,9 +159,7 @@ class PanGBank_API:
 
     def has_collection(self, collection_name: str, version: str = "latest") -> bool:
         """Return whether the collection (optionally at a given version) exists."""
-        params = dict(
-            collection_name=collection_name
-        )
+        params = dict(collection_name=collection_name)
         data = self._json_response(self._url("collections"), params=params)
 
         if not data:
@@ -164,14 +175,13 @@ class PanGBank_API:
     def get_collections(self) -> list[CollectionReleases]:
         """Return every collection with its releases."""
         data = self._json_response(self._url("collections"))
-        return [
-            CollectionReleases.from_api_response(collection)
-            for collection in data
-        ]
+        return [CollectionReleases.from_api_response(collection) for collection in data]
 
     def get_collection_releases(self, collection: str) -> CollectionReleases:
         """Return all releases of a collection by name."""
-        data = self._json_response(self._url("collections"), params=dict(collection_name=collection))
+        data = self._json_response(
+            self._url("collections"), params=dict(collection_name=collection)
+        )
         return CollectionReleases.from_api_response(data[0])
 
     def get_collection(self, collection: str, version: str = "") -> CollectionRelease:
@@ -190,22 +200,26 @@ class PanGBank_API:
         params = dict(
             collection_id=collection.idx,
             pangenome_name=pangenome_name,
-            release_version=collection.version
+            release_version=collection.version,
         )
         data = self._json_response(self._url("pangenomes"), params=params)
         return bool(data)
 
-    def get_pangenome_id(self, collection: CollectionRelease, pangenome_name: str) -> int:
+    def get_pangenome_id(
+        self, collection: CollectionRelease, pangenome_name: str
+    ) -> int:
         """Return the API id of a pangenome in the given collection release."""
         params = dict(
             collection_id=collection.idx,
             pangenome_name=pangenome_name,
-            release_version=collection.version
+            release_version=collection.version,
         )
         data = self._json_response(self._url("pangenomes"), params=params)
         return data[0]["id"]
 
-    def get_pangenome_name(self, collection: CollectionRelease, pangenome_id: int) -> str:
+    def get_pangenome_name(
+        self, collection: CollectionRelease, pangenome_id: int
+    ) -> str:
         """Return a pangenome's name for its id, checked against `collection`.
 
         Raises PanGBank_APIError if the id is unknown, or belongs to a different
@@ -214,11 +228,16 @@ class PanGBank_API:
         try:
             data = self._json_response(self._url("pangenomes", str(pangenome_id)))
         except httpx.HTTPStatusError as e:
-            raise PanGBank_APIError(f"Pangenome id {pangenome_id} not found in PanGBank") from e
+            raise PanGBank_APIError(
+                f"Pangenome id {pangenome_id} not found in PanGBank"
+            ) from e
 
         release = data.get("collection_release") or {}
         coll = release.get("collection") or {}
-        if coll.get("id") != collection.idx or release.get("version") != collection.version:
+        if (
+            coll.get("id") != collection.idx
+            or release.get("version") != collection.version
+        ):
             raise PanGBank_APIError(
                 f"Pangenome id {pangenome_id} ('{data.get('name')}') belongs to "
                 f"'{release.get('collection_name')}@{release.get('version')}', "
@@ -226,7 +245,9 @@ class PanGBank_API:
             )
         return data["name"]
 
-    def fetch_pangenome(self, collection: CollectionRelease, name: str, out: Path) -> Path:
+    def fetch_pangenome(
+        self, collection: CollectionRelease, name: str, out: Path
+    ) -> Path:
         """Download a pangenome file to out (with file locking)."""
         pangenome_id = self.get_pangenome_id(collection, name)
 
@@ -235,7 +256,7 @@ class PanGBank_API:
                 lambda tmp: self._fetch_file(
                     self._url("pangenomes", str(pangenome_id), "file"),
                     tmp,
-                    f"[{collection.full_name}]"
+                    f"[{collection.full_name}]",
                 )
             )[0]
 
@@ -243,9 +264,21 @@ class PanGBank_API:
         """Download the collection's index files (info, genome, pangenome) into out."""
         prefix = f"collections/{collection.idx}"
 
-        self._fetch_file_locked(self._url(prefix, "index/info"), out / "index_info.json", f"[{collection.full_name}]")
-        self._fetch_file_locked(self._url(prefix, "index/genomes"), out / "genome_index.sbt.zip", f"[{collection.full_name}]")
-        self._fetch_file_locked(self._url(prefix, "index/pangenomes"), out / "pangenome_index.sbt.zip", f"[{collection.full_name}]")
+        self._fetch_file_locked(
+            self._url(prefix, "index/info"),
+            out / "index_info.json",
+            f"[{collection.full_name}]",
+        )
+        self._fetch_file_locked(
+            self._url(prefix, "index/genomes"),
+            out / "genome_index.sbt.zip",
+            f"[{collection.full_name}]",
+        )
+        self._fetch_file_locked(
+            self._url(prefix, "index/pangenomes"),
+            out / "pangenome_index.sbt.zip",
+            f"[{collection.full_name}]",
+        )
 
         return out
 
@@ -253,14 +286,21 @@ class PanGBank_API:
         """Download a pangenome's de Bruijn graph files (graph, annotations, graph_tool) into out."""
         prefix = f"pangenomes/{self.get_pangenome_id(collection, name)}"
         self._fetch_file_locked(self._url(prefix, "dbg/graph"), out / f"{name}.dbg")
-        self._fetch_file_locked(self._url(prefix, "dbg/family_annotations"), out / f"{name}.family.row_diff_brwt.annodbg")
-        self._fetch_file_locked(self._url(prefix, "dbg/genome_annotations"), out / f"{name}.genome.row_diff_brwt.annodbg")
+        self._fetch_file_locked(
+            self._url(prefix, "dbg/family_annotations"),
+            out / f"{name}.family.row_diff_brwt.annodbg",
+        )
+        self._fetch_file_locked(
+            self._url(prefix, "dbg/genome_annotations"),
+            out / f"{name}.genome.row_diff_brwt.annodbg",
+        )
         self._fetch_file_locked(self._url(prefix, "graph_tool"), out / f"{name}.gt")
         return out
 
 
 class PanGBank_Cache:
     """Local on-disk cache fronting the PanGBank API."""
+
     def __init__(self, config: PanGBank_Config):
         self._config = config
         self._directory_path = Path(self._config.cache_directory).absolute()
@@ -285,6 +325,7 @@ class PanGBank_Cache:
 
     class CollectionCacheProxy:
         """Cache view bound to a single collection release."""
+
         def __init__(self, cache: "PanGBank_Cache", collection: CollectionRelease):
             self._cache = cache
             self._collection = collection
@@ -357,9 +398,13 @@ class PanGBank_Cache:
             (
                 self.dbg_path(collection, name).exists(),
                 self.dbg_path(collection, name).joinpath(f"{name}.dbg").exists(),
-                self.dbg_path(collection, name).joinpath(f"{name}.family.row_diff_brwt.annodbg").exists(),
-                self.dbg_path(collection, name).joinpath(f"{name}.genome.row_diff_brwt.annodbg").exists(),
-                self.dbg_path(collection, name).joinpath(f"{name}.gt").exists()
+                self.dbg_path(collection, name)
+                .joinpath(f"{name}.family.row_diff_brwt.annodbg")
+                .exists(),
+                self.dbg_path(collection, name)
+                .joinpath(f"{name}.genome.row_diff_brwt.annodbg")
+                .exists(),
+                self.dbg_path(collection, name).joinpath(f"{name}.gt").exists(),
             )
         )
         return self.dbg_path(collection, name) if ok else None
@@ -370,7 +415,9 @@ class PanGBank_Cache:
             (
                 self.index_path(collection).exists(),
                 self.index_path(collection).joinpath("genome_index.sbt.zip").exists(),
-                self.index_path(collection).joinpath("pangenome_index.sbt.zip").exists(),
+                self.index_path(collection)
+                .joinpath("pangenome_index.sbt.zip")
+                .exists(),
                 self.index_path(collection).joinpath("index_info.json").exists(),
             )
         )
@@ -440,5 +487,3 @@ class PanGBank_Cache:
         else:
             self.index_path(collection).mkdir(parents=True, exist_ok=True)
             return self._api.fetch_index(collection, self.index_path(collection))
-
-

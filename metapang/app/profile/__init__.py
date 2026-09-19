@@ -1,22 +1,26 @@
-import sys
 import csv
+import dataclasses
 import json
 import pickle
-import dataclasses
-from pathlib import Path
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import rich_click as click
 from sourmash import load_one_signature
 from sourmash.save_load import SaveSignaturesToLocation
 
-from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
-from metapang.core.index.search import IndexSearch, IndexType, IndexBuilder
-from metapang.core.profile.strains import profile_strains, StrainProfileConfig, StrainProfile
-from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
 from metapang.core.graph import PWGraph, PWGraphAnnotator
+from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
+from metapang.core.index.search import IndexBuilder, IndexSearch, IndexType
+from metapang.core.profile.strains import (
+    StrainProfile,
+    StrainProfileConfig,
+    profile_strains,
+)
+from metapang.logger import log_indent, metapang_add_log_file, mp_log
+from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
 from metapang.report.profile import write_profile_report
-from metapang.logger import mp_log, log_indent, metapang_add_log_file
 from metapang.utils.time import timer
 
 
@@ -26,7 +30,7 @@ def _peak_rss_str() -> str:
     maxrss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     b = float(maxrss if sys.platform == "darwin" else maxrss * 1024)
     unit = "B"
-    for unit in ("B", "KiB", "MiB", "GiB"):
+    for unit in ("B", "KiB", "MiB", "GiB"):  # noqa: B007
         if b < 1024:
             break
         b /= 1024
@@ -36,7 +40,8 @@ def _peak_rss_str() -> str:
 @dataclass
 class ProfileState:
     """Resumable checkpoint tracking which profiling steps have completed."""
-    path: Path | None= None
+
+    path: Path | None = None
     _signature_ok: bool = False
     _pan_search_ok: bool = False
     _gen_search_ok: bool = False
@@ -84,10 +89,14 @@ class ProfileState:
 
     def mapping(self, candidate: str) -> bool:
         """Return whether read mapping has completed for the given candidate."""
-        mp_log.debug(f"Mapping ok for '{candidate}': {self._mapping_ok.get(candidate, False)}")
+        mp_log.debug(
+            f"Mapping ok for '{candidate}': {self._mapping_ok.get(candidate, False)}"
+        )
         return self._mapping_ok.get(candidate, False)
 
-    def annotation_ok(self, candidate: str, reads_mapped: int = 0, reads_total: int = 0) -> None:
+    def annotation_ok(
+        self, candidate: str, reads_mapped: int = 0, reads_total: int = 0
+    ) -> None:
         """Mark graph annotation as complete, record the mapped-read counts, and persist."""
         self._annotation_ok[candidate] = True
         self._reads_mapped[candidate] = reads_mapped
@@ -96,7 +105,9 @@ class ProfileState:
 
     def annotation(self, candidate: str) -> bool:
         """Return whether graph annotation has completed for the given candidate."""
-        mp_log.debug(f"Annotation ok for '{candidate}': {self._annotation_ok.get(candidate, False)}")
+        mp_log.debug(
+            f"Annotation ok for '{candidate}': {self._annotation_ok.get(candidate, False)}"
+        )
         return self._annotation_ok.get(candidate, False)
 
     def reads(self, candidate: str) -> tuple[int, int]:
@@ -105,7 +116,7 @@ class ProfileState:
 
     def write(self) -> None:
         """Persist the current state to its pickle file."""
-        with open(self.path, 'wb') as sf:
+        with open(self.path, "wb") as sf:
             pickle.dump(self, sf)
 
     @classmethod
@@ -113,7 +124,7 @@ class ProfileState:
         """Load state from the given file, or create a fresh state if none exists."""
         if filepath.exists():
             mp_log.info(f"Resuming from previous run, loading state from '{filepath}'")
-            with open(filepath, 'rb') as sf:
+            with open(filepath, "rb") as sf:
                 return pickle.load(sf)
         else:
             mp_log.info(f"Creating new state file at '{filepath}'")
@@ -123,13 +134,15 @@ class ProfileState:
             return obj
 
 
-def phase1(state: ProfileState,
-           cache: PanGBank_Cache.CollectionCacheProxy,
-           output_directory: Path,
-           query: list[Path],
-           sample_name: str,
-           threads: int,
-           gtime):
+def phase1(
+    state: ProfileState,
+    cache: PanGBank_Cache.CollectionCacheProxy,
+    output_directory: Path,
+    query: list[Path],
+    sample_name: str,
+    threads: int,
+    gtime,
+):
     """Compute the query signature and gather candidate species from the genome index."""
 
     mp_log.info("Detecting candidate species")
@@ -147,11 +160,15 @@ def phase1(state: ProfileState,
 
             if state.signature and signature_file.exists():
                 signature = load_one_signature(str(signature_file))
-                mp_log.info(f"Reusing cached query signature for '{sample_name}' ('{signature_file}')")
+                mp_log.info(
+                    f"Reusing cached query signature for '{sample_name}' ('{signature_file}')"
+                )
             else:
                 mp_log.info(f"⏳ Computing query signature for '{sample_name}'")
-                mp_log.debug(f"  k={search.info.kmer_size}, scaled={search.info.scaled}, "
-                             f"from {len(query)} file(s)")
+                mp_log.debug(
+                    f"  k={search.info.kmer_size}, scaled={search.info.scaled}, "
+                    f"from {len(query)} file(s)"
+                )
                 signature = IndexBuilder.file_batch_signature(
                     query,
                     search.info.kmer_size,
@@ -160,7 +177,7 @@ def phase1(state: ProfileState,
                     True,
                     threads,
                     threads * 10,
-                    10_000
+                    10_000,
                 )
 
                 with SaveSignaturesToLocation(str(signature_file)) as ssl:
@@ -169,8 +186,10 @@ def phase1(state: ProfileState,
                 state.signature_ok()
                 mp_log.debug(f"  {len(signature.minhash)} hashes")
 
-        mp_log.info(f"✅ Query signature for '{sample_name}' - "
-                    f"step: {signature_time.format()}, total: {gtime.format()}")
+        mp_log.info(
+            f"✅ Query signature for '{sample_name}' - "
+            f"step: {signature_time.format()}, total: {gtime.format()}"
+        )
         return signature
 
     with log_indent():
@@ -186,12 +205,15 @@ def phase1(state: ProfileState,
             else:
                 mp_log.info("⏳ Searching genome index")
                 gather_results = search.gather_signature(
-                    signature, IndexType.genome, threshold=0.05)
+                    signature, IndexType.genome, threshold=0.05
+                )
                 with open(gather_file, "wb") as gf:
                     pickle.dump(gather_results, gf)
                 state.gen_search_ok()
-        mp_log.info(f"✅ Searching genome index - "
-                    f"step: {gather_time.format()}, total: {gtime.format()}")
+        mp_log.info(
+            f"✅ Searching genome index - "
+            f"step: {gather_time.format()}, total: {gtime.format()}"
+        )
         mp_log.debug(f"Gather matched {len(gather_results)} genome(s)")
         for name, f_query, f_match in gather_results:
             mp_log.trace(f"  gather: {name}  f_query={f_query}  f_match={f_match}")
@@ -215,14 +237,17 @@ def phase1(state: ProfileState,
         mp_log.warning("No candidate species passed the gather threshold")
     return candidates
 
-def phase2_mapping(state: ProfileState,
-                   candidate: str,
-                   cache: PanGBank_Cache.CollectionCacheProxy,
-                   output: Path,
-                   query: list[Path],
-                   threads: int,
-                   metagraph_path: str,
-                   gtime):
+
+def phase2_mapping(
+    state: ProfileState,
+    candidate: str,
+    cache: PanGBank_Cache.CollectionCacheProxy,
+    output: Path,
+    query: list[Path],
+    threads: int,
+    metagraph_path: str,
+    gtime,
+):
     """Map the query reads to the candidate's de Bruijn graph via metagraph."""
 
     anno_output_directory = output / "annotations"
@@ -231,8 +256,6 @@ def phase2_mapping(state: ProfileState,
     dbg_directory = cache.get_dbg(candidate)
     dbg_file = dbg_directory / f"{candidate}.dbg"
     dbg_family_anno = dbg_directory / f"{candidate}.family.row_diff_brwt.annodbg"
-    dbg_genome_anno = dbg_directory / f"{candidate}.genome.row_diff_brwt.annodbg"
-    pangenome_gt = dbg_directory / f"{candidate}.gt"
 
     output_file_family_anno = anno_output_directory / f"{candidate}_family_map.tsv"
     output_file_genome_anno = anno_output_directory / f"{candidate}_genome_map.tsv"
@@ -241,26 +264,32 @@ def phase2_mapping(state: ProfileState,
 
     with timer() as mapping_time:
         if state.mapping(candidate) and output_file_family_anno.exists():
-            mp_log.info(f"Reusing cached read mapping for '{candidate}' ('{output_file_family_anno}')")
+            mp_log.info(
+                f"Reusing cached read mapping for '{candidate}' ('{output_file_family_anno}')"
+            )
         else:
             metagraph = MetagraphCLI(metagraph_path)
             metagraph_version = metagraph.version()
             mp_log.debug(f"metagraph version: {metagraph_version}")
             query_opt = MetagraphQueryOptions(
-                i = dbg_file,
-                a = dbg_family_anno,
-                query_file = query,
-                output_file = output_file_family_anno,
-                parallel = threads,
-                query_mode = "matches",
-                min_kmers_fraction_label = 0.15
+                i=dbg_file,
+                a=dbg_family_anno,
+                query_file=query,
+                output_file=output_file_family_anno,
+                parallel=threads,
+                query_mode="matches",
+                min_kmers_fraction_label=0.15,
             )
             mp_log.info(f"⏳ Mapping reads to DBG for '{candidate}'")
-            mp_log.trace(f"  metagraph query: parallel={threads}, query_mode=matches, "
-                         f"min_kmers_fraction_label=0.15")
+            mp_log.trace(
+                f"  metagraph query: parallel={threads}, query_mode=matches, "
+                f"min_kmers_fraction_label=0.15"
+            )
             metagraph.query(query_opt)
             state.mapping_ok(candidate)
-    mp_log.info(f"✅ Mapping reads to DBG for '{candidate}' - step: {mapping_time.format()}, total: {gtime.format()}")
+    mp_log.info(
+        f"✅ Mapping reads to DBG for '{candidate}' - step: {mapping_time.format()}, total: {gtime.format()}"
+    )
 
     return output_file_family_anno, output_file_genome_anno
 
@@ -278,47 +307,81 @@ def log_strain_profile(candidate: str, profile: StrainProfile) -> None:
         n_obs = sum(1 for v in st.values() if v == "observed")
         n_re = sum(1 for v in st.values() if v == "reassigned")
         n_imp = sum(1 for v in st.values() if v == "imputed")
-        mp_log.info(f"{anchor:<32} RA={comp.ra * 100:6.2f}%  depth={comp.abundance:.3f}  "
-                    f"genes={len(comp.family_ids)} (obs {n_obs} / reasg {n_re} / imp {n_imp})")
+        mp_log.info(
+            f"{anchor:<32} RA={comp.ra * 100:6.2f}%  depth={comp.abundance:.3f}  "
+            f"genes={len(comp.family_ids)} (obs {n_obs} / reasg {n_re} / imp {n_imp})"
+        )
 
 
 def write_run_manifest(out_dir: Path, info: dict) -> Path:
     """Write run.toml recording the MetaPanG version and the options used for the run."""
-    import msgspec
-    from metapang import __version__ as metapang_version, __commit__ as metapang_commit
     from datetime import datetime
 
-    payload = {"metapang_version": metapang_version,
-               "metapang_commit": metapang_commit,
-               "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-               **info}
+    import msgspec
+
+    from metapang import __commit__ as metapang_commit
+    from metapang import __version__ as metapang_version
+
+    payload = {
+        "metapang_version": metapang_version,
+        "metapang_commit": metapang_commit,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        **info,
+    }
     payload = {k: v for k, v in payload.items() if v is not None}
     path = out_dir / "run.toml"
     path.write_bytes(msgspec.toml.encode(payload))
     return path
 
 
-def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
-                          reads_mapped: int = 0, reads_total: int = 0) -> list[Path]:
+def write_profile_outputs(
+    candidate: str,
+    profile: StrainProfile,
+    out_dir: Path,
+    reads_mapped: int = 0,
+    reads_total: int = 0,
+) -> list[Path]:
     """Write the strains, genes, selection, and profile output files for a candidate."""
     comps = sorted(profile.components, key=lambda c: c.ra, reverse=True)
 
     def status_counts(comp):
         st = comp.family_status or {}
-        return (sum(1 for v in st.values() if v == "observed"),
-                sum(1 for v in st.values() if v == "reassigned"),
-                sum(1 for v in st.values() if v == "imputed"))
+        return (
+            sum(1 for v in st.values() if v == "observed"),
+            sum(1 for v in st.values() if v == "reassigned"),
+            sum(1 for v in st.values() if v == "imputed"),
+        )
 
     strains_tsv = out_dir / f"{candidate}.strains.tsv"
     with open(strains_tsv, "w", newline="") as f:
         w = csv.writer(f, delimiter="\t")
-        w.writerow(["anchor", "members", "abundance", "ra", "n_genes",
-                    "n_observed", "n_reassigned", "n_imputed"])
+        w.writerow(
+            [
+                "anchor",
+                "members",
+                "abundance",
+                "ra",
+                "n_genes",
+                "n_observed",
+                "n_reassigned",
+                "n_imputed",
+            ]
+        )
         for c in comps:
             anchor = c.anchor_refs[0] if c.anchor_refs else f"comp{c.component_id}"
             n_obs, n_re, n_imp = status_counts(c)
-            w.writerow([anchor, ";".join(c.anchor_refs), f"{c.abundance:.6f}",
-                        f"{c.ra:.6f}", len(c.family_ids), n_obs, n_re, n_imp])
+            w.writerow(
+                [
+                    anchor,
+                    ";".join(c.anchor_refs),
+                    f"{c.abundance:.6f}",
+                    f"{c.ra:.6f}",
+                    len(c.family_ids),
+                    n_obs,
+                    n_re,
+                    n_imp,
+                ]
+            )
 
     genes_tsv = out_dir / f"{candidate}.genes.tsv"
     with open(genes_tsv, "w", newline="") as f:
@@ -329,16 +392,32 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
             ab = c.family_abundances or {}
             st = c.family_status or {}
             for fid in c.family_ids:
-                w.writerow([anchor, fid,
-                            f"{ab.get(fid, c.abundance):.6f}", st.get(fid, "observed")])
+                w.writerow(
+                    [
+                        anchor,
+                        fid,
+                        f"{ab.get(fid, c.abundance):.6f}",
+                        st.get(fid, "observed"),
+                    ]
+                )
 
     selection_tsv = out_dir / f"{candidate}.selection.tsv"
     with open(selection_tsv, "w", newline="") as f:
         w = csv.writer(f, delimiter="\t")
-        w.writerow(["step", "candidate", "residual", "cv_error", "accepted", "stop_reason"])
+        w.writerow(
+            ["step", "candidate", "residual", "cv_error", "accepted", "stop_reason"]
+        )
         for i, s in enumerate(profile.selection.trace, 1):
-            w.writerow([i, s.added_label, f"{s.residual:.6f}", f"{s.cv_error:.6f}",
-                        s.accepted, s.stop_reason or ""])
+            w.writerow(
+                [
+                    i,
+                    s.added_label,
+                    f"{s.residual:.6f}",
+                    f"{s.cv_error:.6f}",
+                    s.accepted,
+                    s.stop_reason or "",
+                ]
+            )
 
     profile_json = out_dir / f"{candidate}.profile.json"
     payload = {
@@ -359,8 +438,12 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
 
 @click.command()
 @click.option(
-    "--query", "-q", "query", multiple=True,
-    type=click.Path(exists=True, readable=True, path_type=Path), required=True,
+    "--query",
+    "-q",
+    "query",
+    multiple=True,
+    type=click.Path(exists=True, readable=True, path_type=Path),
+    required=True,
     help="""
         \b
         Metagenomic reads to profile (fasta/q, gzipped ok)\n
@@ -370,7 +453,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--pangbank", "-b",
+    "--pangbank",
+    "-b",
     type=str,
     help="""
         \b
@@ -388,7 +472,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=str,
     help="""
         \b
@@ -399,7 +484,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--threads", "-t",
+    "--threads",
+    "-t",
     type=int,
     help="""
         \b
@@ -409,7 +495,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--metagraph-path", "metagraph_path",
+    "--metagraph-path",
+    "metagraph_path",
     type=str,
     help="""
         \b
@@ -421,7 +508,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--stop-rule", type=click.Choice(["cv", "cv_paired"]),
+    "--stop-rule",
+    type=click.Choice(["cv", "cv_paired"]),
     help="""
         \b
         How the number of strains is decided (by cross-validation) __placeholder__\n
@@ -435,7 +523,9 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--k-max", "-k", type=int,
+    "--k-max",
+    "-k",
+    type=int,
     help="""
         \b
         Maximum number of strains to consider __placeholder__\n
@@ -445,7 +535,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--merge-jaccard", type=float,
+    "--merge-jaccard",
+    type=float,
     help="""
         \b
         Collapse near-identical references before selection __placeholder__\n
@@ -456,7 +547,8 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--cv-folds", type=int,
+    "--cv-folds",
+    type=int,
     help="""
         \b
         Number of cross-validation folds __placeholder__\n
@@ -466,7 +558,9 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--cv-min-gain", "cv_min_rel_reduction", type=float,
+    "--cv-min-gain",
+    "cv_min_rel_reduction",
+    type=float,
     help="""
         \b
         Minimum gain to keep a strain ([bold]--stop-rule cv_paired[/] only) __placeholder__\n
@@ -486,7 +580,9 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--impute-min-frac", "impute_min_neighbour_frac", type=float,
+    "--impute-min-frac",
+    "impute_min_neighbour_frac",
+    type=float,
     help="""
         \b
         Dropout imputation threshold __placeholder__\n
@@ -497,7 +593,9 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.option(
-    "--reassign-max-residual", "reassign_max_rel_residual", type=float,
+    "--reassign-max-residual",
+    "reassign_max_rel_residual",
+    type=float,
     help="""
         \b
         Orphan-gene reassignment tolerance __placeholder__\n
@@ -512,10 +610,22 @@ def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
     """,
 )
 @click.pass_context
-def profile(ctx, query, pangbank, output, threads, metagraph_path,
-            stop_rule, k_max, merge_jaccard,
-            cv_folds, cv_min_rel_reduction, refine_ra,
-            impute_min_neighbour_frac, reassign_max_rel_residual) -> None:
+def profile(
+    ctx,
+    query,
+    pangbank,
+    output,
+    threads,
+    metagraph_path,
+    stop_rule,
+    k_max,
+    merge_jaccard,
+    cv_folds,
+    cv_min_rel_reduction,
+    refine_ra,
+    impute_min_neighbour_frac,
+    reassign_max_rel_residual,
+) -> None:
     """
     [bold]Strain-level metagenomic profiling against a pangenome collection[/]
 
@@ -531,22 +641,30 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
     collection, collection_version, pangenome = parse_collection_name_version(pangbank)
 
     if not pangbank_cache.api.has_collection(collection, collection_version):
-        mp_log.error(f"Collection '{collection}@{collection_version}' not found in PanGBank.")
+        mp_log.error(
+            f"Collection '{collection}@{collection_version}' not found in PanGBank."
+        )
         sys.exit(1)
 
-    collection_release = pangbank_cache.api.get_collection(collection, collection_version)
+    collection_release = pangbank_cache.api.get_collection(
+        collection, collection_version
+    )
 
     requested_pangenomes: list[str] = []
-    for token in (pangenome.split(",") if pangenome else []):
+    for token in pangenome.split(",") if pangenome else []:
         name = token.strip()
         if not name:
             continue
         if name.isdigit():
-            resolved = pangbank_cache.api.get_pangenome_name(collection_release, int(name))
+            resolved = pangbank_cache.api.get_pangenome_name(
+                collection_release, int(name)
+            )
             mp_log.info(f"Resolved pangenome id {name} to '{resolved}'")
             name = resolved
         if not pangbank_cache.api.has_pangenome(collection_release, name):
-            mp_log.error(f"Pangenome '{name}' not found in {collection_release.full_name}")
+            mp_log.error(
+                f"Pangenome '{name}' not found in {collection_release.full_name}"
+            )
             sys.exit(1)
         if name not in requested_pangenomes:
             requested_pangenomes.append(name)
@@ -559,24 +677,27 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
     output_directory.mkdir(parents=True, exist_ok=True)
     metapang_add_log_file(output_directory / "logs.txt")
 
-    write_run_manifest(output_directory, {
-        "sample": sample_name,
-        "collection": collection,
-        "collection_version": collection_version,
-        "pangenomes": requested_pangenomes,
-        "query": [str(q) for q in queries],
-        "output": str(output_directory),
-        "threads": threads,
-        "metagraph_path": metagraph_path,
-        "stop_rule": stop_rule,
-        "k_max": k_max,
-        "merge_jaccard": merge_jaccard,
-        "cv_folds": cv_folds,
-        "cv_min_rel_reduction": cv_min_rel_reduction,
-        "refine_ra": refine_ra,
-        "impute_min_neighbour_frac": impute_min_neighbour_frac,
-        "reassign_max_rel_residual": reassign_max_rel_residual,
-    })
+    write_run_manifest(
+        output_directory,
+        {
+            "sample": sample_name,
+            "collection": collection,
+            "collection_version": collection_version,
+            "pangenomes": requested_pangenomes,
+            "query": [str(q) for q in queries],
+            "output": str(output_directory),
+            "threads": threads,
+            "metagraph_path": metagraph_path,
+            "stop_rule": stop_rule,
+            "k_max": k_max,
+            "merge_jaccard": merge_jaccard,
+            "cv_folds": cv_folds,
+            "cv_min_rel_reduction": cv_min_rel_reduction,
+            "refine_ra": refine_ra,
+            "impute_min_neighbour_frac": impute_min_neighbour_frac,
+            "reassign_max_rel_residual": reassign_max_rel_residual,
+        },
+    )
 
     state = ProfileState.load(output_directory / "state.pkl")
 
@@ -591,19 +712,33 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
         reassign_max_rel_residual=reassign_max_rel_residual,
     )
 
-    mp_log.info(f"MetaPanG profile - sample '{sample_name}' vs collection '{collection}'")
+    mp_log.info(
+        f"MetaPanG profile - sample '{sample_name}' vs collection '{collection}'"
+    )
     mp_log.debug(f"Output directory: '{output_directory}'")
-    mp_log.debug(f"Selection: stop_rule={stop_rule}, k_max={k_max}, cv_folds={cv_folds}, "
-                 f"merge_jaccard={merge_jaccard}; refine_ra={refine_ra}; threads={threads}")
+    mp_log.debug(
+        f"Selection: stop_rule={stop_rule}, k_max={k_max}, cv_folds={cv_folds}, "
+        f"merge_jaccard={merge_jaccard}; refine_ra={refine_ra}; threads={threads}"
+    )
     mp_log.trace(f"Query files: {[str(q) for q in queries]}")
 
     with timer() as gtime:
         if requested_pangenomes:
             candidates = requested_pangenomes
-            mp_log.info(f"Profiling {len(candidates)} requested pangenome(s): "
-                        f"{', '.join(candidates)}")
+            mp_log.info(
+                f"Profiling {len(candidates)} requested pangenome(s): "
+                f"{', '.join(candidates)}"
+            )
         else:
-            candidates = phase1(state, collection_proxy, output_directory, queries, sample_name, threads, gtime)
+            candidates = phase1(
+                state,
+                collection_proxy,
+                output_directory,
+                queries,
+                sample_name,
+                threads,
+                gtime,
+            )
 
         anno_output_directory = output_directory / "annotations"
         anno_output_directory.mkdir(parents=True, exist_ok=True)
@@ -613,12 +748,23 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
         for i, candidate in enumerate(candidates, 1):
             mp_log.info(f"[{i}/{n}] Profiling species '{candidate}'")
             with timer() as ctime, log_indent():
-                out_fam, _out_gen = phase2_mapping(state, candidate, collection_proxy, output_directory, queries, threads, metagraph_path, gtime)
+                out_fam, _out_gen = phase2_mapping(
+                    state,
+                    candidate,
+                    collection_proxy,
+                    output_directory,
+                    queries,
+                    threads,
+                    metagraph_path,
+                    gtime,
+                )
 
                 annotated_gt = anno_output_directory / f"{candidate}.profile.gt"
 
                 if state.annotation(candidate) and annotated_gt.exists():
-                    mp_log.info(f"Reusing cached annotated graph for '{candidate}' ('{annotated_gt}')")
+                    mp_log.info(
+                        f"Reusing cached annotated graph for '{candidate}' ('{annotated_gt}')"
+                    )
                     pwg = PWGraph(annotated_gt)
                 else:
                     with timer() as anno_time:
@@ -627,36 +773,60 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
                         pangenome_gt = dbg_path / f"{candidate}.gt"
                         pwg = PWGraph(pangenome_gt)
                         report = PWGraphAnnotator(pwg, out_fam).annotate()
-                        ratio = (f" ({100 * report.total_seq_mapped / report.total_seq:.1f}%)"
-                                 if report.total_seq else "")
-                        mp_log.debug(f"  {pwg.graph.num_vertices()} families; reads mapped: "
-                                     f"{report.total_seq_mapped}/{report.total_seq}{ratio}")
+                        ratio = (
+                            f" ({100 * report.total_seq_mapped / report.total_seq:.1f}%)"
+                            if report.total_seq
+                            else ""
+                        )
+                        mp_log.debug(
+                            f"  {pwg.graph.num_vertices()} families; reads mapped: "
+                            f"{report.total_seq_mapped}/{report.total_seq}{ratio}"
+                        )
                         pwg.save(annotated_gt)
-                        state.annotation_ok(candidate, report.total_seq_mapped, report.total_seq)
+                        state.annotation_ok(
+                            candidate, report.total_seq_mapped, report.total_seq
+                        )
                         mp_log.trace(f"  saved annotated graph '{annotated_gt}'")
-                    mp_log.info(f"✅ Annotating pangenome graph for '{candidate}' - "
-                                f"step: {anno_time.format()}, total: {gtime.format()}")
+                    mp_log.info(
+                        f"✅ Annotating pangenome graph for '{candidate}' - "
+                        f"step: {anno_time.format()}, total: {gtime.format()}"
+                    )
 
                 with timer() as fit_time:
-                    mp_log.info(f"⏳ Fitting strain mixture for '{candidate}' (NNLS + {stop_rule} selection)")
+                    mp_log.info(
+                        f"⏳ Fitting strain mixture for '{candidate}' (NNLS + {stop_rule} selection)"
+                    )
                     profile = profile_strains(pwg, config=config)
-                mp_log.info(f"✅ Fitting strain mixture for '{candidate}' - "
-                            f"step: {fit_time.format()}, total: {gtime.format()}")
+                mp_log.info(
+                    f"✅ Fitting strain mixture for '{candidate}' - "
+                    f"step: {fit_time.format()}, total: {gtime.format()}"
+                )
                 reads_mapped, reads_total = state.reads(candidate)
-                pct = f" ({100 * reads_mapped / reads_total:.1f}%)" if reads_total else ""
-                mp_log.info(f"Species '{candidate}': k={profile.k}, residual={profile.residual:.4f}, "
-                            f"reads mapped={reads_mapped}/{reads_total}{pct}")
+                pct = (
+                    f" ({100 * reads_mapped / reads_total:.1f}%)" if reads_total else ""
+                )
+                mp_log.info(
+                    f"Species '{candidate}': k={profile.k}, residual={profile.residual:.4f}, "
+                    f"reads mapped={reads_mapped}/{reads_total}{pct}"
+                )
                 log_strain_profile(candidate, profile)
 
-                written = write_profile_outputs(candidate, profile, output_directory,
-                                                reads_mapped, reads_total)
+                written = write_profile_outputs(
+                    candidate, profile, output_directory, reads_mapped, reads_total
+                )
                 for path in written:
                     mp_log.info(f"Wrote {path}")
                 results.append((candidate, profile, reads_mapped, reads_total))
-            mp_log.debug(f"[{i}/{n}] '{candidate}' completed - step: {ctime.format()}, total: {gtime.format()}")
+            mp_log.debug(
+                f"[{i}/{n}] '{candidate}' completed - step: {ctime.format()}, total: {gtime.format()}"
+            )
 
         if results:
-            report = write_profile_report(output_directory, sample_name, collection, results)
+            report = write_profile_report(
+                output_directory, sample_name, collection, results
+            )
             mp_log.info(f"Wrote {report}")
 
-    mp_log.info(f"✅ Profiling complete - {n} species - total: {gtime.format()}, peak memory: {_peak_rss_str()}")
+    mp_log.info(
+        f"✅ Profiling complete - {n} species - total: {gtime.format()}, peak memory: {_peak_rss_str()}"
+    )

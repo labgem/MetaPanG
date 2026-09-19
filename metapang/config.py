@@ -1,11 +1,13 @@
-import msgspec
 import os
-from msgspec import Struct, field
+import typing as tp
 from pathlib import Path
+
+import jsonschema
+import msgspec
+from msgspec import Struct, field
+
 from metapang.exceptions import MetaPanG_ConfigError
 from metapang.utils.io import convert
-import typing as tp
-import jsonschema
 
 METAPANG_CONFIG_PATHS = [
     Path().home() / ".config" / "metapang-config",
@@ -18,6 +20,7 @@ METAPANG_CONFIG_DECODERS = {
     ".toml": msgspec.toml,
 }
 
+
 def enc_hook(obj: tp.Any):
     """Encode unsupported objects (Path) into JSON-serializable values."""
     if isinstance(obj, Path):
@@ -25,15 +28,18 @@ def enc_hook(obj: tp.Any):
     else:
         raise NotImplementedError(f"Objects of type {type(obj)} are not supported")
 
-def dec_hook(type: tp.Type, obj: tp.Any):
+
+def dec_hook(type: type, obj: tp.Any):
     """Decode raw values into supported target types (Path)."""
     if type is Path:
         return Path(obj)
     else:
         raise NotImplementedError(f"Objects of type {type} are not supported")
 
+
 class PanGBank_Config(Struct):
     """Configuration for the PanGBank API client and cache."""
+
     api_endpoint: str = field(default="https://pangbank-api.genoscope.cns.fr")
     cache_directory: str = field(default=".metapang-cache")
     use_cache: bool = field(default=True)
@@ -42,6 +48,7 @@ class PanGBank_Config(Struct):
 
 class MetaPanG_External(Struct):
     """Configuration for locating external executables used by MetaPanG."""
+
     search_locations: list[str] = field(default_factory=list)
     metagraph_exe: str = field(default="metagraph")
     pangbank_exe: str = field(default="pangbank")
@@ -49,8 +56,10 @@ class MetaPanG_External(Struct):
 
 class metapang_search_c(Struct):
     """Configuration for the search command."""
+
     class pangenome_c(Struct):
         """Configuration for searching a single pangenome."""
+
         mode: str = field(default="containment")
         threshold: float = field(default=0.1)
         threads: int = field(default=1)
@@ -59,6 +68,7 @@ class metapang_search_c(Struct):
 
     class bank_c(Struct):
         """Configuration for searching a bank of pangenomes."""
+
         mode: str = field(default="containment")
         threshold_pangenome: float = field(default=0.05)
         threshold_genome: float = field(default=0.5)
@@ -70,6 +80,7 @@ class metapang_search_c(Struct):
 
 class metapang_profile_c(Struct):
     """Configuration for the profile command."""
+
     # Single source of truth for the `profile` command's tunable defaults.
     # StrainProfileConfig (metapang.core.profile.strains) sources its defaults
     # from here, and the CLI options default from it too. Field names MUST match
@@ -92,8 +103,10 @@ class metapang_profile_c(Struct):
 
 class metapang_index_c(Struct):
     """Configuration for the index command."""
+
     class bank_c(Struct):
         """Configuration for indexing a bank of pangenomes."""
+
         kmer_size: int = field(default=21)
         scaled: int = field(default=1000)
         nb_hash: int = field(default=0)
@@ -101,6 +114,7 @@ class metapang_index_c(Struct):
 
     class pangenome_c(Struct):
         """Configuration for indexing a single pangenome."""
+
         kmer_size: int = field(default=21)
         annotation_type: str = field(default="rd_brwt")
         filter: str = field(default="all")
@@ -116,12 +130,14 @@ class metapang_configure_c(Struct):
 
     class show_c(Struct):
         """Configuration for the configure show subcommand."""
+
         source: bool = field(default=False)
         format: str = field(default="yaml")
         test: str = field(default="")
 
     class template_c(Struct):
         """Configuration for the configure template subcommand."""
+
         format: str = field(default="yaml")
         output: str = field(default="stdout")
         schema: bool = field(default=False)
@@ -138,17 +154,20 @@ class metapang_tools_c(Struct):
 
         class fams_c(Struct):
             """Configuration for dumping gene families."""
+
             compress: bool = field(default=False)
             filter: str = field(default="all")
             split: bool = field(default=False)
 
         class genes_c(Struct):
             """Configuration for dumping genes."""
+
             compress: bool = field(default=False)
             filter: str = field(default="all")
 
         class reprs_c(Struct):
             """Configuration for dumping representative sequences."""
+
             compress: bool = field(default=False)
             filter: str = field(default="all")
 
@@ -161,6 +180,7 @@ class metapang_tools_c(Struct):
 
 class metapang_commands_c(Struct):
     """Configuration aggregating all MetaPanG command settings."""
+
     configure: metapang_configure_c = field(default_factory=metapang_configure_c)
     tools: metapang_tools_c = field(default_factory=metapang_tools_c)
     index: metapang_index_c = field(default_factory=metapang_index_c)
@@ -170,6 +190,7 @@ class metapang_commands_c(Struct):
 
 class MetaPanG_Config(Struct):
     """Top-level configuration for MetaPanG."""
+
     pangbank: PanGBank_Config = field(default_factory=PanGBank_Config)
     commands: metapang_commands_c = field(default_factory=metapang_commands_c)
 
@@ -205,6 +226,7 @@ def merge_configuration_data(base: dict, override: dict) -> dict:
 
 def configuration_envs() -> dict[str, tp.Any]:
     """Return the environment variable names mapping to configuration fields."""
+
     def collect_envs(data: dict, env: dict[str, tp.Any], prefix="METAPANG_") -> None:
         for k, v in data.items():
             if isinstance(v, dict):

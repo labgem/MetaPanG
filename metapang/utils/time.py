@@ -1,6 +1,4 @@
 import time
-import functools
-from typing import Optional, Callable, Any, Dict, List, Union
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -61,9 +59,9 @@ class TimeFormatter:
         if format_type == "seconds":
             return f"{seconds:.{precision}f}s"
         elif format_type == "milliseconds":
-            return f"{seconds * 1000:.{max(0, precision-3)}f}ms"
+            return f"{seconds * 1000:.{max(0, precision - 3)}f}ms"
         elif format_type == "microseconds":
-            return f"{seconds * 1_000_000:.{max(0, precision-6)}f}μs"
+            return f"{seconds * 1_000_000:.{max(0, precision - 6)}f}μs"
         elif format_type == "nanoseconds":
             return f"{seconds * 1_000_000_000:.0f}ns"
         elif format_type == "minutes":
@@ -86,9 +84,9 @@ class TimeFormatter:
             if seconds < 1e-6:
                 return f"{seconds * 1_000_000_000:.0f}ns"
             elif seconds < 1e-3:
-                return f"{seconds * 1_000_000:.{max(0, precision-6)}f}μs"
+                return f"{seconds * 1_000_000:.{max(0, precision - 6)}f}μs"
             elif seconds < 1:
-                return f"{seconds * 1000:.{max(0, precision-3)}f}ms"
+                return f"{seconds * 1000:.{max(0, precision - 3)}f}ms"
             elif seconds < 60:
                 return f"{seconds:.{precision}f}s"
             elif seconds < 3600:
@@ -100,8 +98,8 @@ class TimeFormatter:
 
     @staticmethod
     def format_multiple(
-        times: List[float], format_type: str = "auto", precision: int = 9
-    ) -> List[str]:
+        times: list[float], format_type: str = "auto", precision: int = 9
+    ) -> list[str]:
         """Format multiple durations at once."""
         return [TimeFormatter.format_time(t, format_type, precision) for t in times]
 
@@ -124,8 +122,8 @@ class TimeFormatter:
             "%S": str(secs_int),
             "%s": f"{total_seconds:.{precision}f}",
             "%f": f"{fractional:.{precision}f}"[2:],
-            "%ms": f"{total_ms:.{max(0, precision-3)}f}",
-            "%us": f"{total_us:.{max(0, precision-6)}f}",
+            "%ms": f"{total_ms:.{max(0, precision - 3)}f}",
+            "%us": f"{total_us:.{max(0, precision - 6)}f}",
             "%ns": str(total_ns),
             "%%": "%",
         }
@@ -141,7 +139,7 @@ class StepCollection:
     """Ordered collection of timing steps with lookup and formatting helpers."""
 
     def __init__(self, format: str = "%Hh%Mm%Ss"):
-        self._steps: List[TimeStep] = []
+        self._steps: list[TimeStep] = []
         self._format = format
 
     def add_step(
@@ -152,7 +150,7 @@ class StepCollection:
         self._steps.append(step)
         return step
 
-    def get_step(self, identifier: Union[str, int]) -> Optional[TimeStep]:
+    def get_step(self, identifier: str | int) -> TimeStep | None:
         """Get a step by name or index, or None if absent."""
         if isinstance(identifier, str):
             for step in self._steps:
@@ -166,35 +164,35 @@ class StepCollection:
                 return None
         return None
 
-    def get_last_step(self) -> Optional[TimeStep]:
+    def get_last_step(self) -> TimeStep | None:
         """Return the most recent step, or None if empty."""
         return self._steps[-1] if self._steps else None
 
-    def get_all_steps(self) -> List[TimeStep]:
+    def get_all_steps(self) -> list[TimeStep]:
         """Return a copy of all steps."""
         return self._steps.copy()
 
-    def get_step_names(self) -> List[str]:
+    def get_step_names(self) -> list[str]:
         """Return the names of all steps."""
         return [step.name for step in self._steps]
 
-    def get_durations(self) -> List[float]:
+    def get_durations(self) -> list[float]:
         """Return each step's own duration."""
         return [step.step_duration for step in self._steps]
 
-    def get_absolute_times(self) -> List[float]:
+    def get_absolute_times(self) -> list[float]:
         """Return each step's time since timer start."""
         return [step.absolute_time for step in self._steps]
 
     def format_all_durations(
         self, format_type: str = "auto", precision: int = 9
-    ) -> List[str]:
+    ) -> list[str]:
         """Format every step's own duration."""
         return [step.format_duration(format_type, precision) for step in self._steps]
 
     def format_all_absolute(
         self, format_type: str = "auto", precision: int = 9
-    ) -> List[str]:
+    ) -> list[str]:
         """Format every step's absolute time."""
         return [step.format_absolute(format_type, precision) for step in self._steps]
 
@@ -208,7 +206,7 @@ class StepCollection:
     def __iter__(self):
         return iter(self._steps)
 
-    def __getitem__(self, key: Union[str, int]) -> Optional[TimeStep]:
+    def __getitem__(self, key: str | int) -> TimeStep | None:
         return self.get_step(key)
 
 
@@ -224,10 +222,10 @@ class Timer:
     ):
         self.name = name
         self.precision = precision
-        self._start_time: Optional[int] = None
-        self._end_time: Optional[int] = None
+        self._start_time: int | None = None
+        self._end_time: int | None = None
         self._paused_time: int = 0
-        self._pause_start: Optional[int] = None
+        self._pause_start: int | None = None
         self._is_running: bool = False
         self._is_paused: bool = False
         self.steps = StepCollection()
@@ -311,15 +309,15 @@ class Timer:
             step_name, current_elapsed, step_duration, current_time
         )
 
-    def get_step(self, identifier: Union[str, int]) -> Optional[TimeStep]:
+    def get_step(self, identifier: str | int) -> TimeStep | None:
         """Get a recorded step by name or index."""
         return self.steps.get_step(identifier)
 
-    def get_last_step(self) -> Optional[TimeStep]:
+    def get_last_step(self) -> TimeStep | None:
         """Return the most recent recorded step."""
         return self.steps.get_last_step()
 
-    def _calculate_elapsed(self, end_time: Optional[int] = None) -> float:
+    def _calculate_elapsed(self, end_time: int | None = None) -> float:
         """Compute elapsed seconds up to end_time, excluding paused time."""
         if self._start_time is None:
             return 0.0

@@ -9,11 +9,12 @@ from numpy.typing import NDArray
 from scipy.optimize import nnls
 
 from metapang.config import metapang_profile_c
-from metapang.core.profile.mixture import Mixture
 from metapang.core.graph import (
-    PWGraph, pw_node_property, pw_graph_property,
+    PWGraph,
+    pw_graph_property,
+    pw_node_property,
 )
-
+from metapang.core.profile.mixture import Mixture
 
 _PD = metapang_profile_c()
 
@@ -21,6 +22,7 @@ _PD = metapang_profile_c()
 @dataclass
 class StrainProfileConfig:
     """Tunable knobs controlling strain selection, decomposition, and abundance refinement."""
+
     merge_jaccard: float = _PD.merge_jaccard
     k_max: int = _PD.k_max
     stop_rule: str = _PD.stop_rule
@@ -35,6 +37,7 @@ class StrainProfileConfig:
 @dataclass
 class SelectionStep:
     """One forward-selection increment: the strain considered and whether it was accepted."""
+
     added_label: str
     residual: float
     cv_error: float
@@ -45,6 +48,7 @@ class SelectionStep:
 @dataclass
 class Selection:
     """The chosen strains with fitted abundances, fit quality, and the selection trace."""
+
     indices: list[int]
     labels: list[str]
     x: NDArray[np.float64]
@@ -59,15 +63,24 @@ class Selection:
         return len(self.indices)
 
     @classmethod
-    def empty(cls) -> "Selection":
+    def empty(cls) -> Selection:
         """An empty selection (no strains chosen)."""
-        return cls(indices=[], labels=[], x=np.zeros(0), ra=np.zeros(0),
-                   residual=0.0, r_squared=0.0, groups={}, trace=[])
+        return cls(
+            indices=[],
+            labels=[],
+            x=np.zeros(0),
+            ra=np.zeros(0),
+            residual=0.0,
+            r_squared=0.0,
+            groups={},
+            trace=[],
+        )
 
 
 @dataclass
 class GeneSet:
     """A detected strain's gene content: anchor references, abundance, and per-family assignment."""
+
     component_id: int
     anchor_refs: list[str]
     abundance: float
@@ -80,6 +93,7 @@ class GeneSet:
 @dataclass
 class StrainProfile:
     """The full profiling result: detected strains, their gene sets, and fit quality."""
+
     k: int
     components: list[GeneSet]
     residual: float
@@ -90,16 +104,22 @@ class StrainProfile:
 @tp.runtime_checkable
 class StrainSelector(tp.Protocol):
     """Protocol for objects that select strains from a mixture."""
+
     def select(self, mix: Mixture, pwg: PWGraph | None = None) -> Selection: ...
 
 
 @tp.runtime_checkable
 class GeneSetAssigner(tp.Protocol):
     """Protocol for objects that assign gene families to selected strains."""
-    def assign(self, selection: Selection, mix: Mixture, pwg: PWGraph) -> list[GeneSet]: ...
+
+    def assign(
+        self, selection: Selection, mix: Mixture, pwg: PWGraph
+    ) -> list[GeneSet]: ...
 
 
-def collapse_columns(mix: Mixture, jaccard: float = 0.95) -> tuple[Mixture, dict[str, list[str]]]:
+def collapse_columns(
+    mix: Mixture, jaccard: float = 0.95
+) -> tuple[Mixture, dict[str, list[str]]]:
     """Merge strain columns whose Jaccard similarity >= threshold (single-linkage).
 
     Returns:
@@ -127,7 +147,7 @@ def collapse_columns(mix: Mixture, jaccard: float = 0.95) -> tuple[Mixture, dict
     with np.errstate(divide="ignore", invalid="ignore"):
         sim = np.where(union_counts > 0, inter / union_counts, 1.0)
     iu, ju = np.where(np.triu(sim >= jaccard, k=1))
-    for i, j in zip(iu.tolist(), ju.tolist()):
+    for i, j in zip(iu.tolist(), ju.tolist(), strict=True):
         union(i, j)
 
     grouped: dict[int, list[int]] = {}
@@ -144,8 +164,12 @@ def collapse_columns(mix: Mixture, jaccard: float = 0.95) -> tuple[Mixture, dict
         group_map[label] = [mix.strain_labels[k] for k in idxs]
 
     new_m = np.column_stack(new_cols) if new_cols else np.empty((mix.n_families, 0))
-    reduced = Mixture(m=new_m, y=mix.y.copy(), strain_labels=new_labels,
-                      family_labels=mix.family_labels)
+    reduced = Mixture(
+        m=new_m,
+        y=mix.y.copy(),
+        strain_labels=new_labels,
+        family_labels=mix.family_labels,
+    )
     return reduced, group_map
 
 
@@ -181,12 +205,12 @@ def kstar_paired(fold_errors: list[list[float]], min_rel_reduction: float = 0.0)
         nxt = np.asarray(fold_errors[k + 1], dtype=float)
         if cur.size == 0 or cur.size != nxt.size:
             break
-        d = cur - nxt                       # per-fold improvement from strain k+1
+        d = cur - nxt  # per-fold improvement from strain k+1
         dbar = float(np.mean(d))
         se = float(np.std(d) / math.sqrt(d.size)) if d.size > 1 else 0.0
         mean_cur = float(np.mean(cur))
         rel = dbar / mean_cur if mean_cur > 0 else 0.0
-        significant = dbar > se                 # improvement beats its own noise
+        significant = dbar > se  # improvement beats its own noise
         meaningful = rel >= min_rel_reduction
         if significant and meaningful:
             kstar = k + 1
@@ -195,8 +219,9 @@ def kstar_paired(fold_errors: list[list[float]], min_rel_reduction: float = 0.0)
     return kstar
 
 
-def _nnls_via_gram(G: NDArray[np.float64], b: NDArray[np.float64], yty: float,
-                   cols: tp.Sequence[int]) -> tuple[NDArray[np.float64], float]:
+def _nnls_via_gram(
+    G: NDArray[np.float64], b: NDArray[np.float64], yty: float, cols: tp.Sequence[int]
+) -> tuple[NDArray[np.float64], float]:
     """Exact NNLS on a subset of a fixed tall design, via its Gram matrix.
 
     With precomputed ``G = M.T @ M``, ``b = M.T @ y``, ``yty = y.T @ y``, solving
@@ -212,12 +237,12 @@ def _nnls_via_gram(G: NDArray[np.float64], b: NDArray[np.float64], yty: float,
     Gs = G[np.ix_(cols, cols)]
     bs = b[cols]
     w, V = np.linalg.eigh(Gs)
-    if w[-1] <= 0:                       # all-zero columns -> only x = 0 feasible
+    if w[-1] <= 0:  # all-zero columns -> only x = 0 feasible
         return np.zeros(len(cols)), float(yty)
     pos = w > w[-1] * 1e-12
     sw = np.sqrt(w[pos])
-    A = V[:, pos].T * sw[:, None]        # (r x k): A.T @ A == Gs on its range
-    rhs = (V[:, pos].T @ bs) / sw        # A.T @ rhs == bs (b lies in range(G))
+    A = V[:, pos].T * sw[:, None]  # (r x k): A.T @ A == Gs on its range
+    rhs = (V[:, pos].T @ bs) / sw  # A.T @ rhs == bs (b lies in range(G))
     x, _ = nnls(A, rhs)
     rss = float(x @ Gs @ x - 2.0 * x @ bs + yty)
     return x, max(rss, 0.0)
@@ -225,27 +250,36 @@ def _nnls_via_gram(G: NDArray[np.float64], b: NDArray[np.float64], yty: float,
 
 class GreedyStrainSelector:
     """Selects strains by greedy forward NNLS with cross-validated stopping."""
-    def __init__(self,
-                 config: StrainProfileConfig | None = None,
-                 priority: dict[str, float] | None = None) -> None:
+
+    def __init__(
+        self,
+        config: StrainProfileConfig | None = None,
+        priority: dict[str, float] | None = None,
+    ) -> None:
         self.config = config or StrainProfileConfig()
         self.priority = priority or {}
         self._G: NDArray[np.float64] = np.zeros((0, 0))
         self._b: NDArray[np.float64] = np.zeros(0)
         self._yty: float = 0.0
         self._n_fam: int = 0
-        self._fold: list[tuple[NDArray[np.float64], NDArray[np.float64], float, int]] = []
+        self._fold: list[
+            tuple[NDArray[np.float64], NDArray[np.float64], float, int]
+        ] = []
 
     def _solve_subset(self, M, y, cols, labels):
         return _nnls_via_gram(self._G, self._b, self._yty, cols)
 
     def _pick_best(self, M, y, selected, remaining, labels):
         """Best next candidate by residual; ties (within tie_rel) broken by priority (shell coverage), then residual, then label."""
-        evals = [(j, self._solve_subset(M, y, selected + [j], labels)[1]) for j in remaining]
+        evals = [
+            (j, self._solve_subset(M, y, selected + [j], labels)[1]) for j in remaining
+        ]
         best_rss = min(r for _, r in evals)
         tie_cut = best_rss * (1.0 + self.config.tie_rel)
         tied = [(j, r) for j, r in evals if r <= tie_cut]
-        tied.sort(key=lambda e: (-self.priority.get(labels[e[0]], 0.0), e[1], labels[e[0]]))
+        tied.sort(
+            key=lambda e: (-self.priority.get(labels[e[0]], 0.0), e[1], labels[e[0]])
+        )
         return tied[0]
 
     def _cv_fold_errors(self, cols, n_folds: int) -> list[float]:
@@ -273,8 +307,16 @@ class GreedyStrainSelector:
         tss = float(np.sum((y - y.mean()) ** 2)) if n_fam else 0.0
 
         def empty():
-            return Selection([], [], np.zeros(0), np.zeros(0),
-                             float(np.linalg.norm(y)), 0.0, groups, trace)
+            return Selection(
+                [],
+                [],
+                np.zeros(0),
+                np.zeros(0),
+                float(np.linalg.norm(y)),
+                0.0,
+                groups,
+                trace,
+            )
 
         if not sel_cols:
             return empty()
@@ -288,9 +330,16 @@ class GreedyStrainSelector:
         total = float(np.sum(x))
         ra = x / total if total > 0 else x
         r2 = 1.0 - rss / tss if tss > 0 else 0.0
-        return Selection(indices=list(sel_cols), labels=[labels[c] for c in sel_cols],
-                         x=x, ra=ra, residual=math.sqrt(rss), r_squared=r2,
-                         groups=groups, trace=trace)
+        return Selection(
+            indices=list(sel_cols),
+            labels=[labels[c] for c in sel_cols],
+            x=x,
+            ra=ra,
+            residual=math.sqrt(rss),
+            r_squared=r2,
+            groups=groups,
+            trace=trace,
+        )
 
     def _greedy_order(self, reduced, pwg):
         """Greedy forward ordering of strains (no early stop).
@@ -317,7 +366,6 @@ class GreedyStrainSelector:
         M, y = reduced.m, reduced.y
         labels = reduced.strain_labels
         n_fam = reduced.n_families
-        tss = float(np.sum((y - y.mean()) ** 2)) if n_fam else 0.0
 
         # Precompute the Gram once: every greedy/CV NNLS below then costs O(k^3)
         # instead of O(F k^2), so the tall design M (F rows) is touched only here.
@@ -333,13 +381,15 @@ class GreedyStrainSelector:
         for f in range(cfg.cv_folds):
             rows = fold == f
             Mf = M[rows]
-            self._fold.append((Mf.T @ Mf, Mf.T @ y[rows],
-                               float(y[rows] @ y[rows]), int(rows.sum())))
+            self._fold.append(
+                (Mf.T @ Mf, Mf.T @ y[rows], float(y[rows] @ y[rows]), int(rows.sum()))
+            )
 
         order, order_rss, trace = self._greedy_order(reduced, pwg)
 
-        fold_errs = [self._cv_fold_errors(order[:k], cfg.cv_folds)
-                     for k in range(len(order) + 1)]
+        fold_errs = [
+            self._cv_fold_errors(order[:k], cfg.cv_folds) for k in range(len(order) + 1)
+        ]
         means = [float(np.mean(e)) for e in fold_errs]
         if cfg.stop_rule == "cv_paired":
             kstar = kstar_paired(fold_errs, cfg.cv_min_rel_reduction)
@@ -349,11 +399,15 @@ class GreedyStrainSelector:
             reason = "cv"
 
         for k in range(1, len(order) + 1):
-            trace.append(SelectionStep(added_label=labels[order[k - 1]],
-                                       residual=math.sqrt(order_rss[k - 1]),
-                                       cv_error=means[k],
-                                       accepted=(k <= kstar),
-                                       stop_reason=None if k <= kstar else reason))
+            trace.append(
+                SelectionStep(
+                    added_label=labels[order[k - 1]],
+                    residual=math.sqrt(order_rss[k - 1]),
+                    cv_error=means[k],
+                    accepted=(k <= kstar),
+                    stop_reason=None if k <= kstar else reason,
+                )
+            )
         return self._finalize(reduced, order[:kstar], groups, trace)
 
     def select(self, mix: Mixture, pwg: PWGraph | None = None) -> Selection:
@@ -376,12 +430,17 @@ class DecompositionGeneSetAssigner:
        co-located neighbours. If none are covered treat as absent ("imputed", or dropped).
     """
 
-    def __init__(self, impute_min_neighbour_frac: float = 0.5,
-                 reassign_max_rel_residual: float = 0.5) -> None:
+    def __init__(
+        self,
+        impute_min_neighbour_frac: float = 0.5,
+        reassign_max_rel_residual: float = 0.5,
+    ) -> None:
         self.impute_min_neighbour_frac = impute_min_neighbour_frac
         self.reassign_max_rel_residual = reassign_max_rel_residual
 
-    def assign(self, selection: Selection, mix: Mixture | None, pwg: PWGraph) -> list[GeneSet]:
+    def assign(
+        self, selection: Selection, mix: Mixture | None, pwg: PWGraph
+    ) -> list[GeneSet]:
         """Assign each gene family to detected strains (observed, reassigned, or imputed)."""
         import itertools
 
@@ -415,8 +474,14 @@ class DecompositionGeneSetAssigner:
             if len(tied) == 1:
                 return tied[0]
             support = neighbour_carrier_indices(v)
-            return max(tied, key=lambda combo: (len(set(combo) & support), -len(combo),
-                                                tuple(-c for c in combo)))
+            return max(
+                tied,
+                key=lambda combo: (
+                    len(set(combo) & support),
+                    -len(combo),
+                    tuple(-c for c in combo),
+                ),
+            )
 
         def covered_neighbour_frac(v, j: int) -> float:
             tot = cov = 0
@@ -435,7 +500,9 @@ class DecompositionGeneSetAssigner:
             y = float(weight_prop[v])
             tot = sum(a[c] for c in T)
             for c in T:
-                fam_ab[c][fid] = fam_ab[c].get(fid, 0.0) + (y * a[c] / tot if tot > 0 else y / len(T))
+                fam_ab[c][fid] = fam_ab[c].get(fid, 0.0) + (
+                    y * a[c] / tot if tot > 0 else y / len(T)
+                )
                 fam_st[c][fid] = "reassigned"
 
         def match_ok(y: float, T) -> bool:
@@ -476,15 +543,17 @@ class DecompositionGeneSetAssigner:
 
         result: list[GeneSet] = []
         for cid, label in enumerate(labels):
-            result.append(GeneSet(
-                component_id=cid,
-                anchor_refs=selection.groups.get(label, [label]),
-                abundance=a[cid],
-                ra=float(selection.ra[cid]),
-                family_ids=list(fam_ab[cid].keys()),
-                family_abundances=fam_ab[cid],
-                family_status=fam_st[cid],
-            ))
+            result.append(
+                GeneSet(
+                    component_id=cid,
+                    anchor_refs=selection.groups.get(label, [label]),
+                    abundance=a[cid],
+                    ra=float(selection.ra[cid]),
+                    family_ids=list(fam_ab[cid].keys()),
+                    family_abundances=fam_ab[cid],
+                    family_status=fam_st[cid],
+                )
+            )
         return result
 
 
@@ -522,10 +591,16 @@ def refine_abundances(selection: Selection, components: list[GeneSet]) -> Select
     total = float(np.sum(x))
     ra = x / total if total > 0 else x
 
-    return Selection(indices=selection.indices, labels=selection.labels,
-                     x=x, ra=ra, residual=selection.residual,
-                     r_squared=selection.r_squared,
-                     groups=selection.groups, trace=selection.trace)
+    return Selection(
+        indices=selection.indices,
+        labels=selection.labels,
+        x=x,
+        ra=ra,
+        residual=selection.residual,
+        r_squared=selection.r_squared,
+        groups=selection.groups,
+        trace=selection.trace,
+    )
 
 
 def _all_strains(pwg: PWGraph) -> list[str]:
@@ -541,8 +616,9 @@ def _all_strains(pwg: PWGraph) -> list[str]:
     return sorted(seen)
 
 
-def build_mixture(pwg: PWGraph, strains: list[str] | None = None,
-                  exclude: set[str] | None = None) -> Mixture:
+def build_mixture(
+    pwg: PWGraph, strains: list[str] | None = None, exclude: set[str] | None = None
+) -> Mixture:
     """Build the NNLS mixture (M, y) from a PWGraph.
 
     `exclude` holds out genomes from the candidate set (leave-one-out): nodes and weights
@@ -573,24 +649,34 @@ def build_mixture(pwg: PWGraph, strains: list[str] | None = None,
     return Mixture(m=m, y=y, strain_labels=list(strains), family_labels=labels)
 
 
-def profile_strains(pwg: PWGraph, *, config: StrainProfileConfig | None = None,
-                    selector: StrainSelector | None = None,
-                    assigner: GeneSetAssigner | None = None,
-                    exclude: set[str] | None = None) -> StrainProfile:
+def profile_strains(
+    pwg: PWGraph,
+    *,
+    config: StrainProfileConfig | None = None,
+    selector: StrainSelector | None = None,
+    assigner: GeneSetAssigner | None = None,
+    exclude: set[str] | None = None,
+) -> StrainProfile:
     """Profile strains present in a PWGraph: select strains, then assign gene content."""
     config = config or StrainProfileConfig()
     mix = build_mixture(pwg, exclude=exclude)
 
     if not np.any(mix.y > 0):
-        return StrainProfile(k=0, components=[], residual=0.0, r_squared=0.0,
-                             selection=Selection.empty())
+        return StrainProfile(
+            k=0, components=[], residual=0.0, r_squared=0.0, selection=Selection.empty()
+        )
 
     if selector is None:
         g = pwg.graph
         part_prop = g.vp[pw_node_property.partition.value]
-        shell = np.fromiter((part_prop[v] == "S" for v in g.vertices()),
-                            dtype=bool, count=g.num_vertices())
-        cov_s = mix.m[shell & (mix.y > 0)].sum(axis=0)   # covered shell families per genome
+        shell = np.fromiter(
+            (part_prop[v] == "S" for v in g.vertices()),
+            dtype=bool,
+            count=g.num_vertices(),
+        )
+        cov_s = mix.m[shell & (mix.y > 0)].sum(
+            axis=0
+        )  # covered shell families per genome
         priority = {lbl: float(cov_s[j]) for j, lbl in enumerate(mix.strain_labels)}
         selector = GreedyStrainSelector(config=config, priority=priority)
 
@@ -599,13 +685,18 @@ def profile_strains(pwg: PWGraph, *, config: StrainProfileConfig | None = None,
     if assigner is not None:
         components = assigner.assign(selection, mix, pwg)
     else:
-        decomposer = DecompositionGeneSetAssigner(config.impute_min_neighbour_frac,
-                                                  config.reassign_max_rel_residual)
+        decomposer = DecompositionGeneSetAssigner(
+            config.impute_min_neighbour_frac, config.reassign_max_rel_residual
+        )
         components = decomposer.assign(selection, mix, pwg)
         if config.refine_ra and selection.k > 0:
             selection = refine_abundances(selection, components)
             components = decomposer.assign(selection, mix, pwg)
 
-    return StrainProfile(k=selection.k, components=components,
-                         residual=selection.residual, r_squared=selection.r_squared,
-                         selection=selection)
+    return StrainProfile(
+        k=selection.k,
+        components=components,
+        residual=selection.residual,
+        r_squared=selection.r_squared,
+        selection=selection,
+    )

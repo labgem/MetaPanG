@@ -1,13 +1,15 @@
 import subprocess
 
 import rich_click as click
+from rich.console import Console
+
 from metapang.config import PanGBank_Config
 from metapang.pg.api import PanGBank_API
-from metapang.utils.execution import find_executable, MetaPanG_MissingTool
-from rich.console import Console
+from metapang.utils.execution import MetaPanG_MissingTool, find_executable
 
 check_success = "[[green] ok [/]]"
 check_warning = "[[yellow]warn[/]]"
+
 
 def check_dependencies(tools: list[tuple[str, str, int | None]]) -> list[str]:
     """Check that each external tool is found and executable, returning status messages."""
@@ -31,7 +33,7 @@ def check_dependencies(tools: list[tuple[str, str, int | None]]) -> list[str]:
     return res
 
 
-@click.command(context_settings={'show_default': False})
+@click.command(context_settings={"show_default": False})
 def checkhealth():
     """
     [bold]Check MetaPanG environment[/]
@@ -40,26 +42,27 @@ def checkhealth():
 
     console.print("> Checking external dependencies")
 
-    dep_warnings = check_dependencies([
-        ("metagraph", "'metapang index pangenome', 'metapang profile'", 255)
-    ])
+    dep_warnings = check_dependencies(
+        [("metagraph", "'metapang index pangenome', 'metapang profile'", 255)]
+    )
 
     for w in dep_warnings:
         console.print(w)
 
     console.print("> Checking external (non pip) library dependencies")
     try:
-        import graph_tool.all as gt
+        import graph_tool.all as gt  # noqa: F401
+
         console.print(f"{check_success} 'graph-tool' library found.")
     except ImportError:
-        console.print(f"{check_warning} 'graph-tool' library not found. The library is included in the following 'MetaPanG' distribution: bioconda, docker and apptainer. If you use 'MetaPanG' from sources, you need to install 'graph-tool' manually. See https://graph-tool.skewed.de/installation.html for instructions.")
-
+        console.print(
+            f"{check_warning} 'graph-tool' library not found. The library is included in the following 'MetaPanG' distribution: bioconda, docker and apptainer. If you use 'MetaPanG' from sources, you need to install 'graph-tool' manually. See https://graph-tool.skewed.de/installation.html for instructions."
+        )
 
     console.print("> Checking 'PanGBank API' connection")
 
     c = PanGBank_Config(
-        api_endpoint="https://pangbank-api.genoscope.cns.fr",
-        with_tty_log=False
+        api_endpoint="https://pangbank-api.genoscope.cns.fr", with_tty_log=False
     )
 
     api = PanGBank_API(c)
@@ -69,8 +72,10 @@ def checkhealth():
         console.print(f"{check_success} PanGBank API reachable, available collections:")
         for c in cs:
             for r in c.releases:
-                console.print(f"- [bold]{c.name}@{r.version}[/] \t (taxonomy: {r.taxonomy} {r.taxonomy_version})")
-    except:
-        console.print(f"{check_warning} Failed to reach PanGBank API at {api.url}. Required by: 'metapang profile'")
-
-
+                console.print(
+                    f"- [bold]{c.name}@{r.version}[/] \t (taxonomy: {r.taxonomy} {r.taxonomy_version})"
+                )
+    except Exception:
+        console.print(
+            f"{check_warning} Failed to reach PanGBank API at {api.url}. Required by: 'metapang profile'"
+        )

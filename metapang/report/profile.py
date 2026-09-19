@@ -17,9 +17,11 @@ def _esc(v) -> str:
 def _status_counts(comp) -> tuple[int, int, int]:
     """Return the (observed, reassigned, imputed) family counts of a component."""
     st = comp.family_status or {}
-    return (sum(1 for v in st.values() if v == "observed"),
-            sum(1 for v in st.values() if v == "reassigned"),
-            sum(1 for v in st.values() if v == "imputed"))
+    return (
+        sum(1 for v in st.values() if v == "observed"),
+        sum(1 for v in st.values() if v == "reassigned"),
+        sum(1 for v in st.values() if v == "imputed"),
+    )
 
 
 def _strains_table(profile: StrainProfile) -> str:
@@ -28,7 +30,11 @@ def _strains_table(profile: StrainProfile) -> str:
     rows = []
     for c in comps:
         anchor = c.anchor_refs[0] if c.anchor_refs else f"comp{c.component_id}"
-        extra = f" <span class='muted'>(+{len(c.anchor_refs) - 1})</span>" if len(c.anchor_refs) > 1 else ""
+        extra = (
+            f" <span class='muted'>(+{len(c.anchor_refs) - 1})</span>"
+            if len(c.anchor_refs) > 1
+            else ""
+        )
         n_obs, n_re, n_imp = _status_counts(c)
         ra = c.ra * 100
         rows.append(
@@ -45,8 +51,10 @@ def _strains_table(profile: StrainProfile) -> str:
         )
     if not rows:
         return "<p class='muted'>No strains detected above threshold.</p>"
-    head = ("<tr><th>Anchor</th><th>Abundance</th><th>Relative abundance</th>"
-            "<th>#genes</th><th>observed</th><th>reassigned</th><th>imputed</th></tr>")
+    head = (
+        "<tr><th>Anchor</th><th>Abundance</th><th>Relative abundance</th>"
+        "<th>#genes</th><th>observed</th><th>reassigned</th><th>imputed</th></tr>"
+    )
     return f"<table class='data'><thead>{head}</thead><tbody>{''.join(rows)}</tbody></table>"
 
 
@@ -68,13 +76,20 @@ def _selection_table(profile: StrainProfile) -> str:
             f"<td>{_esc(s.stop_reason or '')}</td>"
             "</tr>"
         )
-    head = ("<tr><th>step</th><th>candidate</th><th>residual</th><th>cv error</th>"
-            "<th>decision</th><th>stop reason</th></tr>")
+    head = (
+        "<tr><th>step</th><th>candidate</th><th>residual</th><th>cv error</th>"
+        "<th>decision</th><th>stop reason</th></tr>"
+    )
     return f"<table class='data'><thead>{head}</thead><tbody>{''.join(rows)}</tbody></table>"
 
 
-def _species_section(idx: int, candidate: str, profile: StrainProfile,
-                     reads_mapped: int, reads_total: int) -> str:
+def _species_section(
+    idx: int,
+    candidate: str,
+    profile: StrainProfile,
+    reads_mapped: int,
+    reads_total: int,
+) -> str:
     """Render one species panel (stats, strains, selection, genes tables)."""
     reads = "-"
     if reads_total:
@@ -95,8 +110,11 @@ def _species_section(idx: int, candidate: str, profile: StrainProfile,
     )
 
 
-def render_profile_report(sample_name: str, collection: str,
-                          results: list[tuple[str, StrainProfile, int, int]]) -> str:
+def render_profile_report(
+    sample_name: str,
+    collection: str,
+    results: list[tuple[str, StrainProfile, int, int]],
+) -> str:
     """Build the full self-contained HTML report string for a profile run."""
     tab_parts = []
     for i, (cand, _p, _m, _t) in enumerate(results):
@@ -105,8 +123,10 @@ def render_profile_report(sample_name: str, collection: str,
             f"<button class='tab{active}' onclick='showPanel({i})'>{_esc(cand)}</button>"
         )
     tabs = "".join(tab_parts)
-    panels = "".join(_species_section(i, cand, prof, mapped, total)
-                     for i, (cand, prof, mapped, total) in enumerate(results))
+    panels = "".join(
+        _species_section(i, cand, prof, mapped, total)
+        for i, (cand, prof, mapped, total) in enumerate(results)
+    )
     if not results:
         panels = "<p class='muted'>No candidate species were profiled.</p>"
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -120,11 +140,17 @@ def render_profile_report(sample_name: str, collection: str,
         f"<span><b>MetaPanG</b> v{_esc(metapang_version)}</span>"
         f"</div>"
     )
-    return _PAGE.format(sample=_esc(sample_name), meta=meta, tabs=tabs, panels=panels, css=_CSS, js=_JS)
+    return _PAGE.format(
+        sample=_esc(sample_name), meta=meta, tabs=tabs, panels=panels, css=_CSS, js=_JS
+    )
 
 
-def write_profile_report(out_dir: Path, sample_name: str, collection: str,
-                         results: list[tuple[str, StrainProfile, int, int]]) -> Path:
+def write_profile_report(
+    out_dir: Path,
+    sample_name: str,
+    collection: str,
+    results: list[tuple[str, StrainProfile, int, int]],
+) -> Path:
     """Write report.html into out_dir and return its path."""
     out = out_dir / "report.html"
     out.write_text(render_profile_report(sample_name, collection, results))

@@ -2,33 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from metapang.core.index.index import IndexBuildConfig, IndexInfo, IndexBuilder
+from metapang.core.index.index import IndexBuildConfig, IndexBuilder, IndexInfo
 
 
 @pytest.fixture(scope="module")
 def index_configuration(tmp_path_factory):
     index_directory = tmp_path_factory.mktemp("metapang_test_index")
 
-    pangenomes = [
-        (
-            "pangenome1",
-            [
-                Path("tests/data/index/pangenome1/genome11.fa"),
-                Path("tests/data/index/pangenome1/genome12.fa"),
-                Path("tests/data/index/pangenome1/genome13.fa"),
-                Path("tests/data/index/pangenome1/genome14.fa"),
-            ],
-        ),
-        (
-            "pangenome2",
-            [
-                Path("tests/data/index/pangenome2/genome21.fa"),
-                Path("tests/data/index/pangenome2/genome22.fa"),
-                Path("tests/data/index/pangenome2/genome23.fa"),
-                Path("tests/data/index/pangenome2/genome24.fa"),
-            ],
-        ),
-    ]
     ibc = IndexBuildConfig(
         kmer_size=25, scaled=1000, n=0, pangenomes=[], output=index_directory
     )
@@ -85,4 +65,4 @@ def test_index_creation(index):
     assert Path(index.output / index.pangenome_index_name).exists()
     assert Path(index.output / "index_info.json").exists()
 
-    info = IndexInfo.load_json(index.output / "index_info.json")
+    IndexInfo.load_json(index.output / "index_info.json")

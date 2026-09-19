@@ -2,8 +2,10 @@ import click
 import pandas as pd
 from rich.table import Table
 
+
 class ClickEnum(click.Choice):
     """A click.Choice that converts to an Enum member."""
+
     def __init__(self, enum):
         self._enum = enum
         super().__init__(list(sorted(set(enum.__members__))))
@@ -28,10 +30,12 @@ def df_to_rich(df: pd.DataFrame, title="") -> Table:
         table.add_row(*row)
     return table
 
+
 def show_df_in_rich(df: pd.DataFrame, title=""):
     """Display a pandas DataFrame as a rich Table on stderr."""
     table = df_to_rich(df, title)
     from rich.console import Console
+
     console = Console(stderr=True)
     console.print(table)
 
@@ -49,6 +53,7 @@ def metanpang_option(*param_decls, shelp="", lhelp="", **kwargs):
 
     return decorator
 
-def space(n: int=2) -> str:
+
+def space(n: int = 2) -> str:
     """Return a string of n non-breaking spaces."""
-    return "\u00A0" * n
+    return "\u00a0" * n

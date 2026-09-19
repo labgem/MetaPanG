@@ -1,23 +1,27 @@
 import rich_click as click
 
+from metapang.config import configuration_schema, configuration_template
 from metapang.utils.io import smart_io
-from metapang.config import configuration_template, configuration_schema
+
 
 @click.command()
 @click.option(
-    "--format", "-f",
+    "--format",
+    "-f",
     type=click.Choice(["json", "yaml", "toml"], case_sensitive=False),
-    help="Output format __placeholder__"
+    help="Output format __placeholder__",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     type=str,
     help="Path to output file __placeholder__",
 )
 @click.option(
-    "--schema", "-s",
+    "--schema",
+    "-s",
     is_flag=True,
-    help="Output schema instead of template __placeholder__"
+    help="Output schema instead of template __placeholder__",
 )
 def template(format: str, output: str, schema: bool = False) -> None:
     """

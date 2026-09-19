@@ -1,29 +1,29 @@
-from graph_tool import Graph, Vertex, GraphView, VertexPropertyMap, load_graph
-from graph_tool import VertexBase as VertexType
-
-from pathlib import Path
-from enum import Enum
 import typing as tp
-import numpy as np
-
-from dataclasses import dataclass
 
 # Ignore warnings from pytables when reading pangenome HDF5 files
 import warnings
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
+import numpy as np
+from graph_tool import Graph, GraphView, Vertex, VertexPropertyMap, load_graph
+from graph_tool import VertexBase as VertexType
 from tables.exceptions import FiltersWarning
 
 warnings.simplefilter("ignore", FiltersWarning)
 
 
-
 class pw_graph_property(str, Enum):
     """Graph-level property keys stored on a PWGraph."""
+
     annotation_report = "annotation_report"
     per_organism_nodes = "per_organism_nodes"
 
 
 class pw_node_property(str, Enum):
     """Vertex-level property keys stored on a PWGraph."""
+
     nid = "nid"
     strains = "strains"
     partition = "partition"
@@ -48,9 +48,11 @@ pw_graph_property_type: dict[pw_graph_property, str] = {
     pw_graph_property.per_organism_nodes: "python::object",
 }
 
+
 @dataclass
 class GenomeCoverage:
     """Per-organism node counts and covered-node counts by partition (P/S/C)."""
+
     nb_p: int
     nb_s: int
     nb_c: int
@@ -82,8 +84,10 @@ class GenomeCoverage:
     def r(self):
         return self.cov_nodes / self.nodes
 
+
 class PWGraph:
     """Pangenome graph wrapper over a graph_tool Graph with typed node properties."""
+
     def __init__(self, pangenome: Path | GraphView) -> None:
         self._gt: Graph = Graph()
         self._vmap: dict[str, VertexType] | None = None
@@ -105,8 +109,9 @@ class PWGraph:
             self._gt = pangenome
 
     def _from_h5(self, pangenome_h5: Path) -> None:
-        from ppanggolin.pangenome import Pangenome                       # heavy: lazy
         from ppanggolin.formats.readBinaries import check_pangenome_info
+        from ppanggolin.pangenome import Pangenome  # heavy: lazy
+
         pangenome = Pangenome()
         pangenome.add_file(pangenome_h5)
         check_pangenome_info(
@@ -143,7 +148,9 @@ class PWGraph:
 
             self._gt.vp[pw_node_property.strains.value][v] = organisms
 
-        self._gt.gp[pw_graph_property.per_organism_nodes.value] = dict(per_organism_nodes)
+        self._gt.gp[pw_graph_property.per_organism_nodes.value] = dict(
+            per_organism_nodes
+        )
         for fam in pangenome.gene_families:
             for n in fam.neighbors:
                 if self._gt.edge(self._vmap[fam.name], self._vmap[n.name]):
@@ -173,7 +180,9 @@ class PWGraph:
         self, node: VertexType | str, prop: pw_node_property
     ) -> int | str | list[str] | None:
         """Return the value of a property for a single node."""
-        return self._gt.vp[prop.value][node if isinstance(node, Vertex) else self.node(node)]
+        return self._gt.vp[prop.value][
+            node if isinstance(node, Vertex) else self.node(node)
+        ]
 
     def node_properties(
         self, node: VertexType | str
@@ -196,7 +205,9 @@ class PWGraph:
         value: int | str | list[str],
     ) -> None:
         """Set a property value for a single node."""
-        self._gt.vp[prop.value][node if isinstance(node, Vertex) else self.node(node)] = value
+        self._gt.vp[prop.value][
+            node if isinstance(node, Vertex) else self.node(node)
+        ] = value
 
     def inc_node_property(
         self,
@@ -266,10 +277,9 @@ class PWGraph:
         self,
         graph: Graph | GraphView,
         prop: pw_node_property = pw_node_property.weight,
-        predicate: tp.Callable[[VertexType, VertexPropertyMap], bool] = lambda v, p: p[
-            v
-        ]
-        > 0,
+        predicate: tp.Callable[[VertexType, VertexPropertyMap], bool] = lambda v, p: (
+            p[v] > 0
+        ),
     ) -> float:
         c = 0
         for v in graph.vertices():
@@ -308,7 +318,7 @@ class PWGraph:
         nodes = {}
 
         for v in self.graph.vertices():
-            for o in self.node_property(v, pw_node_property.strains): # type: ignore
+            for o in self.node_property(v, pw_node_property.strains):  # type: ignore
                 if o not in coverage:
                     coverage[o] = {"P": 0, "S": 0, "C": 0}
                 if o not in nodes:
@@ -316,14 +326,19 @@ class PWGraph:
 
                 pp = self.node_property(v, pw_node_property.partition)
                 nodes[o][pp] += 1
-                if self.node_property(v, pw_node_property.weight) > 0: # type: ignore
+                if self.node_property(v, pw_node_property.weight) > 0:  # type: ignore
                     coverage[o][pp] += 1
 
         return {
             name: GenomeCoverage(
-                nodes[name]["P"], nodes[name]["S"], nodes[name]["C"],
-                coverage[name]["P"], coverage[name]["S"], coverage[name]["C"]
-            ) for name in coverage
+                nodes[name]["P"],
+                nodes[name]["S"],
+                nodes[name]["C"],
+                coverage[name]["P"],
+                coverage[name]["S"],
+                coverage[name]["C"],
+            )
+            for name in coverage
         }
 
     def coverage_per_organisms(self) -> dict[str, float]:
@@ -392,7 +407,9 @@ class PWGraph:
     ) -> float | np.floating:
         """Return the mean property value across persistent nodes (0.0 if none)."""
         return (
-            np.mean([self._gt.vp[prop.value][v] for v in self.view_persistent().vertices()])
+            np.mean(
+                [self._gt.vp[prop.value][v] for v in self.view_persistent().vertices()]
+            )
             if self.view_persistent().num_vertices() > 0
             else 0.0
         )
@@ -429,12 +446,14 @@ class PWGraph:
 @dataclass
 class PWGraphAnnotationReport:
     """Summary of sequences seen and mapped during annotation."""
+
     total_seq: int
     total_seq_mapped: int
 
 
 class PWGraphAnnotator:
     """Annotate a PWGraph with read, kmer, and weight counts from a query result file."""
+
     def __init__(self, graph: PWGraph, annotation_file: Path) -> None:
         self._graph = graph
         self._annotation_file = annotation_file
@@ -449,7 +468,7 @@ class PWGraphAnnotator:
 
     def annotate(self) -> PWGraphAnnotationReport:
         """Parse the annotation file and update node counts, returning the report."""
-        with open(self._annotation_file, "r") as f:
+        with open(self._annotation_file) as f:
             for line in f:
                 if line:
                     self._report.total_seq += 1
@@ -458,13 +477,15 @@ class PWGraphAnnotator:
                         if node is None:
                             continue
                         self._graph._gt.vp[pw_node_property.read_count.value][node] += 1
-                        self._graph._gt.vp[pw_node_property.kmer_count.value][node] += v[1]
-                        w = (v[1] + 21) / self._graph._gt.vp[pw_node_property.length.value][
-                            node
-                        ]
+                        self._graph._gt.vp[pw_node_property.kmer_count.value][node] += (
+                            v[1]
+                        )
+                        w = (v[1] + 21) / self._graph._gt.vp[
+                            pw_node_property.length.value
+                        ][node]
                         self._graph._gt.vp[pw_node_property.weight.value][node] += w
                         self._report.total_seq_mapped += 1
-        self._graph._gt.gp[pw_graph_property.annotation_report.value] = self._report.__dict__
+        self._graph._gt.gp[pw_graph_property.annotation_report.value] = (
+            self._report.__dict__
+        )
         return self._report
-
-

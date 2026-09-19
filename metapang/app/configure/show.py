@@ -1,16 +1,20 @@
 import msgspec
 import rich_click as click
 
-@click.command(context_settings={'show_default': False})
+
+@click.command(context_settings={"show_default": False})
 @click.option(
-    "--source", "-s",
+    "--source",
+    "-s",
     is_flag=True,
     help="Include the source of configuration values __placeholder__",
 )
 @click.option(
-    "--format", "-f",
+    "--format",
+    "-f",
     type=click.Choice(["json", "yaml", "toml"], case_sensitive=False),
-    help="Output format __placeholder__")
+    help="Output format __placeholder__",
+)
 @click.pass_context
 def show(ctx, source: bool, format: str) -> None:
     """
@@ -18,7 +22,7 @@ def show(ctx, source: bool, format: str) -> None:
     """
     c = ctx.obj["config"]
     sources = ctx.obj["sources"]
-    
+
     if source:
         match format:
             case "yaml":

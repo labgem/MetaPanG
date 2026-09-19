@@ -8,4 +8,3 @@ def colors(partition: str) -> str:
         return "#79deff"
     else:
         return "#d62728"
-

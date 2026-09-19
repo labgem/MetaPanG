@@ -1,7 +1,8 @@
 import rich_click as click
 
-from metapang.app.configure.template import template
 from metapang.app.configure.show import show
+from metapang.app.configure.template import template
+
 
 @click.group()
 def configure() -> None:
@@ -24,6 +25,7 @@ def configure() -> None:
     Use '[i]metapang configure show -s[/]' to show the current state of the configuration,\n
     including the source of each value (system, env, ...)
     """
+
 
 configure.add_command(template)
 configure.add_command(show)

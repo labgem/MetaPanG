@@ -22,9 +22,15 @@ metagraph = "*"
 
 [feature.dev.dependencies]
 pre-commit = ">=4.1.0"
-black = "*"
+ruff = ">=0.16"
 ipython = "*"
 viztracer = ">=1.1.1"
+
+[feature.dev.tasks]
+format = "ruff format ."
+format-check = "ruff format --check ."
+lint = "ruff check ."
+lint-fix = "ruff check --fix ."
 
 [feature.doc.dependencies]
 sphinx = ">=8.1.3"
