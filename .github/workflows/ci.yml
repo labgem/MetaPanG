@@ -35,4 +35,37 @@ jobs:
         run: pixi run -e default python -c "import metapang; print('metapang', metapang.__version__, metapang.__commit__)"
 
       - name: Run tests
-        run: pixi run -e default python -X faulthandler -m pytest
+        if: matrix.os != 'ubuntu-24.04-arm'
+        run: pixi run -e default python -m pytest
+
+      - name: Diagnose shutdown crash (aarch64)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        run: |
+          set +e
+          sudo apt-get update -qq && sudo apt-get install -y -qq gdb
+          sudo sysctl -w kernel.core_pattern=/tmp/core.%e.%p
+          ulimit -c unlimited
+          py=$(pixi run -e default python -c "import sys; print(sys.executable)")
+          echo "python: $py"
+
+          echo "== import =="
+          for m in numpy scipy "graph_tool" "graph_tool.all" sourmash pyfastx gb_io metapang; do
+            pixi run -e default python -c "import $m"
+            echo "  import $m -> exit $?"
+          done
+
+          pixi run -e default python -c "import graph_tool.all, sourmash"; echo "  graph_tool.all + sourmash -> exit $?"
+          pixi run -e default python -c "import metapang.core.index.index"; echo "  index (multiprocessing) -> exit $?"
+
+          echo "=== pytest ==="
+          pixi run -e default python -X faulthandler -m pytest
+          echo "pytest exit $?"
+
+          echo "== core dump ==="
+          ls -l /tmp/core.* 2>/dev/null || echo "no core file"
+          core=$(ls -t /tmp/core.* 2>/dev/null | head -1)
+          if [ -n "$core" ]; then
+            gdb -batch -ex "bt" -ex "thread apply all bt" "$py" "$core" 2>&1 | head -150
+          elif command -v coredumpctl >/dev/null; then
+            echo "trying coredumpctl"; coredumpctl gdb -1 -A "-batch -ex bt" 2>&1 | head -150
+          fi
