@@ -31,3 +31,10 @@ repos:
         types: [python]
         pass_filenames: false
         require_serial: true
+
+      - id: version-consistency
+        name: version consistency (__version__ == pixi.toml)
+        entry: python3 scripts/check_version.py
+        language: system
+        files: ^(metapang/__init__\.py|pixi\.toml)$
+        pass_filenames: false

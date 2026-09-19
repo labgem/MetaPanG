@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#
+# git pre-push hook: reject pushing a version tag (vX.Y.Z) that does not match
+# the repo version (metapang.__version__ / pixi.toml).
+
+exec python3 "$(git rev-parse --show-toplevel)/scripts/check_version.py" --pre-push
