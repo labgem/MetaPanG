@@ -18,7 +18,7 @@ metapang = { path = ".", editable = true }
 PATH = "$PATH:$PIXI_PROJECT_ROOT/.pixi/envs/metagraph/bin"
 
 [feature.mg.dependencies]
-metagraph = "*"
+metagraph = ">=0.5.1"
 
 [feature.dev.dependencies]
 pre-commit = ">=4.1.0"
