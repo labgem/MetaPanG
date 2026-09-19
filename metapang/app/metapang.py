@@ -9,6 +9,7 @@ from metapang import __version__ as metapang_version
 from metapang.app.checkhealth import checkhealth
 from metapang.app.configure import configure
 from metapang.app.index import index
+from metapang.app.issue import issue
 from metapang.app.profile import profile
 from metapang.app.search import search
 from metapang.app.tools import tools
@@ -69,7 +70,10 @@ click.rich_click.COMMAND_GROUPS = {
                 "tools",
             ],
         },
-        {"name": "Utilities", "commands": ["configure", "version", "checkhealth"]},
+        {
+            "name": "Utilities",
+            "commands": ["configure", "version", "checkhealth", "issue"],
+        },
     ]
 }
 
@@ -181,3 +185,4 @@ metapang.add_command(search)
 metapang.add_command(tools)
 metapang.add_command(configure)
 metapang.add_command(checkhealth)
+metapang.add_command(issue)

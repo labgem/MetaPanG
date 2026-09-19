@@ -33,13 +33,8 @@ def check_dependencies(tools: list[tuple[str, str, int | None]]) -> list[str]:
     return res
 
 
-@click.command(context_settings={"show_default": False})
-def checkhealth():
-    """
-    [bold]Check MetaPanG environment[/]
-    """
-    console = Console(stderr=True)
-
+def run_health_checks(console: Console) -> None:
+    """Run all environment checks, printing human-readable results to `console`."""
     console.print("> Checking external dependencies")
 
     dep_warnings = check_dependencies(
@@ -79,3 +74,11 @@ def checkhealth():
         console.print(
             f"{check_warning} Failed to reach PanGBank API at {api.url}. Required by: 'metapang profile'"
         )
+
+
+@click.command(context_settings={"show_default": False})
+def checkhealth():
+    """
+    [bold]Check MetaPanG environment[/]
+    """
+    run_health_checks(Console(stderr=True))
