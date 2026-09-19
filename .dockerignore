@@ -17,6 +17,7 @@ dist
 tests
 packaging
 
+docs
 result
 .direnv
 .envrc
