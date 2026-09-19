@@ -1,17 +1,17 @@
-# Build from the repository root:
-#   docker build -f packaging/docker/Dockerfile -t metapang .
-FROM mambaorg/micromamba:latest
+FROM ghcr.io/prefix-dev/pixi:latest
 
-COPY --chown=$MAMBA_USER:$MAMBA_USER packaging/docker/env.yaml /tmp/env.yaml
-RUN micromamba install -y -n base -f /tmp/env.yaml && \
-    micromamba clean --all --yes
+LABEL org.opencontainers.image.source="https://github.com/LABGeM/MetaPanG"
 
-COPY --chown=$MAMBA_USER:$MAMBA_USER pyproject.toml README.md LICENSE /src/
-COPY --chown=$MAMBA_USER:$MAMBA_USER metapang /src/metapang
-RUN micromamba run -n base python -m pip install --no-cache-dir /src
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends procps \
+ && rm -rf /var/lib/apt/lists/*
 
-ENV PATH=/opt/conda/bin:/opt/conda/condabin:$PATH
+WORKDIR /app
+COPY . /app
 
-# _entrypoint.sh activates the base environment before running the command.
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "metapang"]
+RUN pixi install --locked -e default -e metagraph
+
+RUN pixi shell-hook -e default -s bash > /shell-hook.sh
+
+ENTRYPOINT ["/bin/bash", "-c", "source /shell-hook.sh && exec metapang \"$@\"", "--"]
 CMD ["--help"]
