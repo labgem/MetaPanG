@@ -1,5 +1,12 @@
 # MetaPanG
 
+[![CI](https://github.com/LABGeM/MetaPanG/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/ci.yml)
+[![Lint](https://github.com/LABGeM/MetaPanG/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/lint.yml)
+[![Typecheck](https://github.com/LABGeM/MetaPanG/actions/workflows/typecheck.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/typecheck.yml)
+[![Version](https://img.shields.io/github/v/tag/LABGeM/MetaPanG?label=version&sort=semver)](https://github.com/LABGeM/MetaPanG/tags)
+[![Container](https://img.shields.io/badge/ghcr.io-labgem%2Fmetapang-2496ED?logo=docker&logoColor=white)](https://github.com/LABGeM/MetaPanG/pkgs/container/metapang)
+[![License: CeCILL-C](https://img.shields.io/badge/license-CeCILL--C-blue.svg)](https://cecill.info/licences/Licence_CeCILL-C_V1-en.html)
+
 > [!NOTE]
 > `MetaPanG` is under active development. A first release is coming soon.
 
