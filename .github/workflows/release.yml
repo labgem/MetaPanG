@@ -16,6 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -43,7 +47,7 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            GIT_COMMIT=${{ github.sha }}
+            GIT_COMMIT=${{ steps.sha.outputs.short }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
