@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest      # linux-64
+          - os: ubuntu-24.04-arm   # linux-aarch64
+          - os: macos-13           # osx-64 (Intel)
+          - os: macos-14           # osx-arm64 (Apple Silicon)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          environments: default
+          locked: true
+          cache: true
+
+      - name: Show versions
+        run: pixi run -e default python -c "import metapang; print('metapang', metapang.__version__, metapang.__commit__)"
+
+      - name: Run tests
+        run: pixi run -e default test
