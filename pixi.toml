@@ -3,7 +3,7 @@ name = "metapang"
 version = "0.1.0"
 description = "Strain-level metagenomic profiling against pangenome graphs"
 channels = ["conda-forge", "bioconda"]
-platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
 
 [feature.app.dependencies]
 python = "3.12.*"
