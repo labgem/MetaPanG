@@ -18,6 +18,8 @@ locally, so each resource is retrieved only once and reused by later runs.
 
 ## Installation
 
+`MetaPanG` is supported on Linux x86_64, macOS x86_64/arm64. Linux arm64 is not supported at the moment.
+
 ### With `conda`
 
 `MetaPanG` depends on `graph-tool`, which is not available on PyPI. A conda

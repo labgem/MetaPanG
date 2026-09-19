@@ -19,7 +19,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest      # linux-64
-          - os: ubuntu-26.04-arm   # linux-aarch64
           - os: macos-15-intel     # osx-64 (Intel)
           - os: macos-14           # osx-arm64 (Apple Silicon)
     steps:
