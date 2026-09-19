@@ -60,6 +60,32 @@ pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
 `pixi run` sets everything up on first use. Use `pixi shell` to enter the environment and call `metapang`
 directly.
 
+### With Docker
+
+The docker image bundles all dependencies.
+
+```
+docker run --rm -t -v /path/to/data:/data -w /data \
+  -v metapang-cache:/cache -e METAPANG_PANGBANK_CACHE_DIRECTORY=/cache \
+  ghcr.io/labgem/metapang:latest profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+```
+
+> [!IMPORTANT]
+> `MetaPanG` caches the pangenomes and databases it downloads (see
+> [Cache location](#cache-location)). By default the cache is `.metapang-cache`
+> relative to the working directory. Inside a container, anything written to the filesystem
+> is lost when using `--rm`, so an unmounted cache is re-downloaded on every run. Set an explicit cache
+> path with `METAPANG_PANGBANK_CACHE_DIRECTORY` and back it with a persistent volume
+> (a named volume as above, or a host path with `-v /path/on/host:/cache`). This
+> persists downloads across runs and lets several runs share a
+> single cache.
+
+An Apptainer/Singularity image can be built from the same image:
+
+```
+apptainer build metapang.sif docker://ghcr.io/labgem/metapang:latest
+```
+
 ## Usage
 
 > [!WARNING]
