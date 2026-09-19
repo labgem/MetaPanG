@@ -282,6 +282,22 @@ def log_strain_profile(candidate: str, profile: StrainProfile) -> None:
                     f"genes={len(comp.family_ids)} (obs {n_obs} / reasg {n_re} / imp {n_imp})")
 
 
+def write_run_manifest(out_dir: Path, info: dict) -> Path:
+    """Write run.toml recording the MetaPanG version and the options used for the run."""
+    import msgspec
+    from metapang import __version__ as metapang_version, __commit__ as metapang_commit
+    from datetime import datetime
+
+    payload = {"metapang_version": metapang_version,
+               "metapang_commit": metapang_commit,
+               "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+               **info}
+    payload = {k: v for k, v in payload.items() if v is not None}
+    path = out_dir / "run.toml"
+    path.write_bytes(msgspec.toml.encode(payload))
+    return path
+
+
 def write_profile_outputs(candidate: str, profile: StrainProfile, out_dir: Path,
                           reads_mapped: int = 0, reads_total: int = 0) -> list[Path]:
     """Write the strains, genes, selection, and profile output files for a candidate."""
@@ -542,6 +558,25 @@ def profile(ctx, query, pangbank, output, threads, metagraph_path,
     output_directory = Path(output.format(query=sample_name, collection=collection))
     output_directory.mkdir(parents=True, exist_ok=True)
     metapang_add_log_file(output_directory / "logs.txt")
+
+    write_run_manifest(output_directory, {
+        "sample": sample_name,
+        "collection": collection,
+        "collection_version": collection_version,
+        "pangenomes": requested_pangenomes,
+        "query": [str(q) for q in queries],
+        "output": str(output_directory),
+        "threads": threads,
+        "metagraph_path": metagraph_path,
+        "stop_rule": stop_rule,
+        "k_max": k_max,
+        "merge_jaccard": merge_jaccard,
+        "cv_folds": cv_folds,
+        "cv_min_rel_reduction": cv_min_rel_reduction,
+        "refine_ra": refine_ra,
+        "impute_min_neighbour_frac": impute_min_neighbour_frac,
+        "reassign_max_rel_residual": reassign_max_rel_residual,
+    })
 
     state = ProfileState.load(output_directory / "state.pkl")
 
