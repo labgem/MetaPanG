@@ -213,7 +213,9 @@ class IndexBuilder:
                 executor.shutdown(wait=False)
                 os._exit(1)
 
-        return SourmashSignature(m.copy(), name=files[0].stem)
+        signature = SourmashSignature(m.copy(), name=files[0].stem)
+        man.shutdown()
+        return signature
 
     def construct(self, nb_cores: int, with_log: bool=True) -> IndexInfo:
         """Construct and save the index, returning its IndexInfo."""
@@ -266,5 +268,6 @@ class IndexBuilder:
         mp_log_info(with_log, f"Saving index info at '{self._config.output}'")
         info.save_json(self._config.output / "index_info.json")
 
+        manager.shutdown()
         return info
 
