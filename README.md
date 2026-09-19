@@ -8,7 +8,7 @@
 [![License: CeCILL-C](https://img.shields.io/badge/license-CeCILL--C-blue.svg)](https://cecill.info/licences/Licence_CeCILL-C_V1-en.html)
 
 > [!NOTE]
-> `MetaPanG` is under active development. A first release is coming soon.
+> `MetaPanG` is under active development. Usage and results may change.
 
 `MetaPanG` is a tool for strain-level profiling of metagenomic samples against
 prokaryotic pangenome graphs. Given sequencing reads and a collection of species
@@ -66,8 +66,8 @@ pixi install --all
 pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
-`pixi run` sets everything up on first use. Use `pixi shell` to enter the environment and call `metapang`
-directly.
+`pixi install --all` sets up both environments. You can also use `pixi shell` to enter
+the environment and call `metapang` directly.
 
 ### With Docker
 
