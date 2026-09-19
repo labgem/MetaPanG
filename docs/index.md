@@ -34,5 +34,6 @@ See [Installation](installation.md) for the other supported setups, and
 installation
 configuration
 usage
+reporting
 references
 :::
