@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "metapang"
 version = "0.1.0"
 description = "Strain-level metagenomic profiling against pangenome graphs"
