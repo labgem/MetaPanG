@@ -190,6 +190,11 @@ In addition, the directory contains `report.html`, a self-contained summary of a
 detected species, and `logs.txt`, the run log. Intermediate files (the query sketch,
 the read mapping, and the annotated graphs) are cached so that a run can be resumed.
 
+## Getting help
+
+Found a bug or need help? See [how to report a bug](https://github.com/LABGeM/MetaPanG/issues/1)
+for what to include, then open an issue.
+
 ## License
 
 `MetaPanG` is distributed under the CeCILL-C license; see `LICENSE`.
