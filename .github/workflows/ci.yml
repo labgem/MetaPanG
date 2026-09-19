@@ -3,7 +3,17 @@ name: ci
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".readthedocs.yaml"
+      - "LICENSE"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".readthedocs.yaml"
+      - "LICENSE"
   workflow_dispatch:
 
 concurrency:
