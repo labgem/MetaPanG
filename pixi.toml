@@ -33,12 +33,16 @@ format-check = "ruff format --check ."
 lint = "ruff check ."
 lint-fix = "ruff check --fix ."
 typecheck = "pyright"
+install-hooks = "pre-commit install && ln -sf ../../scripts/git-pre-push .git/hooks/pre-push"
 
 [feature.doc.dependencies]
 sphinx = ">=8.1.3"
 furo = ">=2024.8.6"
 myst-parser = ">=4.0.1"
 sphinx-copybutton = ">=0.5.2"
+
+[feature.doc.tasks]
+docs = "sphinx-build -b html docs docs/_build/html"
 
 [environments]
 default = ["app"]
@@ -48,4 +52,4 @@ dev = ["app", "dev", "doc"]
 [tasks]
 metapang = "metapang"
 test = "pytest"
-docs = "sphinx-build -b html docs docs/_build/html"
+docker = 'docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -f packaging/docker/Dockerfile -t ghcr.io/labgem/metapang:$(grep -m1 "^version = " pixi.toml | grep -oE "[0-9]+(\.[0-9]+)+") -t ghcr.io/labgem/metapang:latest .'
