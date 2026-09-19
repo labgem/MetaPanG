@@ -3,6 +3,7 @@ from pathlib import Path
 from metapang.logger import mp_log
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
 from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
+from metapang.core.graph import PWGraph, PWGraphAnnotator
 from metapang.utils.time import timer
 import sys
 
@@ -45,8 +46,14 @@ import sys
     type=click.Path(path_type=str),
     help="Output file ('stdout' or '-' for standard output) __placeholder__.",
 )
+@click.option(
+    "--annotate",
+    type=click.Path(path_type=Path),
+    help="Also write a graph_tool annotated pangenome graph (.gt) to this path,"
+         "with per-family read and k-mer counts",
+)
 @click.pass_context
-def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, output) -> None:
+def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, output, annotate) -> None:
     """
     [bold]Search a in a MetaPanG pangenome index[/bold]
 
@@ -69,6 +76,11 @@ def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, o
         else:
             if not (dbg and annotations):
                 raise click.UsageError("You must provide either --pangbank OR (--dbg AND --annotations).")
+
+        if annotate and not pangbank:
+            raise click.UsageError("--annotate requires --pangbank: the annotated graph is built on the prebuilt .gt downloaded from PanGBank")
+        if annotate and output in ("stdout", "-"):
+            raise click.UsageError("--annotate needs the query results in a file. Set --output to a file, not stdout")
 
         config = ctx.obj.get("config")
 
@@ -95,9 +107,11 @@ def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, o
             dbg_directory = proxy.get_dbg(pangenome_name)
             dbg_file = dbg_directory / f"{pangenome_name}.dbg"
             annotations_file = dbg_directory / f"{pangenome_name}.row_diff_brwt.annodbg"
+            pangenome_gt = dbg_directory / f"{pangenome_name}.gt"
         else:
             dbg_file = dbg
             annotations_file = annotations
+            pangenome_gt = None
 
         mcli = MetagraphCLI(metagraph_path)
 
@@ -117,10 +131,25 @@ def pangenome(ctx, dbg, annotations, pangbank, query, threads, metagraph_path, o
 
         mcli.query(query_opt)
 
+        if annotate:
+            assert pangenome_gt is not None
+            if not pangenome_gt.exists():
+                mp_log.error(f"Cannot annotate: pangenome graph '{pangenome_gt}' not found")
+                sys.exit(1)
+            mp_log.info(f"Annotating pangenome graph '{pangenome_gt.name}'")
+            pwg = PWGraph(pangenome_gt)
+            report = PWGraphAnnotator(pwg, Path(output)).annotate()
+            ratio = (f" ({100 * report.total_seq_mapped / report.total_seq:.1f}%)"
+                     if report.total_seq else "")
+            pwg.save(annotate)
+            mp_log.info(f"Reads mapped: {report.total_seq_mapped}/{report.total_seq}{ratio}")
+
         mp_log.info(f"Done ({t.format()})")
 
         if output not in ("stdout", "-"):
             mp_log.info(f"Output available at '{output}'")
+        if annotate:
+            mp_log.info(f"Annotated graph available at '{annotate}'")
 
 
 
