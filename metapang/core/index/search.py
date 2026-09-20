@@ -197,7 +197,6 @@ class IndexSearch:
         Returns:
             One SearchResult per match, possibly empty.
         """
-        print(self.info.kmer_size, self.info.n, self.info.scaled)
         sig = IndexBuilder.file_signature(
             name, genome, k=self.info.kmer_size, n=self.info.n, scaled=self.info.scaled
         )
