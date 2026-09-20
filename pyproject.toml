@@ -68,9 +68,13 @@ packages = [
 [tool.setuptools.dynamic]
 version = { attr = "metapang.__version__" }
 
-[tool.pytest]
-addopts = ["-v", "-s", "--tb=short"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-v", "--tb=short", "--import-mode=importlib"]
 enable_assertion_pass_hook = true
+markers = [
+    "integration: end-to-end tests",
+]
 
 [tool.ruff]
 line-length = 88

@@ -1,4 +1,29 @@
+from pathlib import Path
+
 import pytest
+
+from metapang.logger import mp_log
+
+
+def pytest_configure(config):
+    mp_log.disable("metapang")
+
+
+def pytest_collection_modifyitems(items):
+    def rank(item):
+        path = str(item.path)
+        if "test_profile.py" in path:
+            return 2
+        if "/integration/" in path:
+            return 1
+        return 0
+
+    items.sort(key=rank)
+
+
+@pytest.fixture(scope="session")
+def data_dir():
+    return Path(__file__).resolve().parent / "data"
 
 
 @pytest.hookimpl(tryfirst=True)
