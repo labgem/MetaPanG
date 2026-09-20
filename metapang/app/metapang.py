@@ -17,7 +17,7 @@ from metapang.app.version import version
 from metapang.config import configuration
 from metapang.logger import metapang_setup_logger, mp_log
 
-click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.TEXT_MARKUP = "rich"
 
 
 def check_for_new_version() -> str:
