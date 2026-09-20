@@ -19,6 +19,7 @@ from metapang.core.profile.strains import (
     profile_strains,
 )
 from metapang.logger import log_indent, metapang_add_log_file, mp_log
+from metapang.pg import compat
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
 from metapang.report.profile import write_profile_report
 from metapang.utils.time import timer
@@ -143,8 +144,12 @@ def phase1(
     sample_name: str,
     threads: int,
     gtime,
+    discarded: dict[str, str],
 ):
-    """Compute the query signature and gather candidate species from the genome index."""
+    """Compute the query signature and gather candidate species from the genome index.
+
+    Species in `discarded` are excluded from the gather so they never claim k-mers.
+    """
 
     mp_log.info("Detecting candidate species")
 
@@ -206,7 +211,14 @@ def phase1(
             else:
                 mp_log.info("⏳ Searching genome index")
                 gather_results = search.gather_signature(
-                    signature, IndexType.genome, threshold=0.05
+                    signature,
+                    IndexType.genome,
+                    threshold=0.05,
+                    exclude=(
+                        (lambda name: name.split("@")[0] in discarded)
+                        if discarded
+                        else None
+                    ),
                 )
                 with open(gather_file, "wb") as gf:
                     pickle.dump(gather_results, gf)
@@ -610,6 +622,16 @@ def write_profile_outputs(
         is <= this value. Otherwise the gene is dropped.
     """,
 )
+@click.option(
+    "--include-discarded",
+    is_flag=False,
+    flag_value="*",
+    default=None,
+    help=(
+        "Include species MetaPanG discards by default. Bare flag includes all. "
+        "--include-discarded=s__A,s__B includes only those."
+    ),
+)
 @click.pass_context
 def profile(
     ctx,
@@ -626,6 +648,7 @@ def profile(
     refine_ra,
     impute_min_neighbour_frac,
     reassign_max_rel_residual,
+    include_discarded,
 ) -> None:
     """
     [bold]Strain-level metagenomic profiling against a pangenome collection[/]
@@ -651,6 +674,8 @@ def profile(
         collection, collection_version
     )
 
+    compat.check_supported(collection_release.name, collection_release.version)
+
     requested_pangenomes: list[str] = []
     for token in pangenome.split(",") if pangenome else []:
         name = token.strip()
@@ -667,6 +692,14 @@ def profile(
                 f"Pangenome '{name}' not found in {collection_release.full_name}"
             )
             sys.exit(1)
+        reason = compat.discard_reason(
+            collection_release.name, collection_release.version, name
+        )
+        if reason:
+            mp_log.warning(
+                f"Pangenome '{name}' is discarded for {collection_release.full_name} "
+                f"({reason}). Profiling it anyway."
+            )
         if name not in requested_pangenomes:
             requested_pangenomes.append(name)
 
@@ -731,6 +764,25 @@ def profile(
                 f"{', '.join(candidates)}"
             )
         else:
+            all_discarded = compat.discarded_species(
+                collection_release.name, collection_release.version
+            )
+            if include_discarded == "*":
+                included = set(all_discarded)
+            elif include_discarded is None:
+                included = set()
+            else:
+                included = {
+                    s.strip() for s in include_discarded.split(",") if s.strip()
+                }
+            discarded = {s: r for s, r in all_discarded.items() if s not in included}
+            if discarded:
+                mp_log.info(
+                    f"Excluding {len(discarded)} discarded species from detection "
+                    "(use --include-discarded to include them):"
+                )
+                for species, reason in sorted(discarded.items()):
+                    mp_log.info(f"  - {species}: {reason}")
             candidates = phase1(
                 state,
                 collection_proxy,
@@ -739,6 +791,7 @@ def profile(
                 sample_name,
                 threads,
                 gtime,
+                discarded,
             )
 
         anno_output_directory = output_directory / "annotations"

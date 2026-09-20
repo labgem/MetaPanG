@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -233,6 +234,7 @@ class IndexSearch:
         signature: SourmashSignature,
         index_type: IndexType,
         threshold: float = 0.0,
+        exclude: Callable[[str], bool] | None = None,
     ) -> list[tuple]:
         """Greedy min-set-cover (gather) over the index.
 
@@ -254,6 +256,8 @@ class IndexSearch:
                 threshold=threshold,
                 do_containment=True,
             )
+            if exclude is not None:
+                matches = [m for m in matches if not exclude(m.signature.name)]
             if not matches:
                 break
             best_m, best_ov, best_mh = None, 0, None

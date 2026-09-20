@@ -32,6 +32,47 @@ The run is **resumable**. A `state.pkl` checkpoint and the cached intermediate f
 (query signature, read mapping, annotated graphs) are reused, so re-running the same
 command in the same output directory continues where it stopped.
 
+## Collection compatibility
+
+Each `MetaPanG` release ships a compatibility policy that decides which
+`PanGBank` collections it can profile against.
+
+**Supported versions.** A collection version this release was not validated
+against is rejected up front, before any work is done:
+
+```
+metapang profile -q reads.fastq.gz -b GTDB_refseq@1.0.0
+# Error: 'GTDB_refseq@1.0.0' is not compatible with this MetaPanG version
+#        (supported versions: 2.0.0).
+```
+
+This is a hard check and cannot be overridden; upgrade or downgrade `MetaPanG`
+to match the collection.
+
+**Discarded species.** Within a supported version, some species may be
+discarded by default (for example, unreliable pangenomes).
+
+When any are excluded the run log lists them:
+
+```
+Excluding 1 discarded species from detection (use --include-discarded to include them):
+  - s__Some_species: low quality pangenome
+```
+
+Unlike the version check, discards are overridable with `--include-discarded`:
+
+```
+# include every discarded species
+metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 --include-discarded
+
+# include only specific ones (comma-separated, note the '=')
+metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 \
+  --include-discarded=s__Some_species,s__Other_species
+```
+
+Naming a discarded species explicitly through the `:pangenomes` suffix of `-b`
+also profiles it, since that skips detection entirely.
+
 ## Inputs
 
 `-q`, `--query` (required, repeatable)
@@ -86,6 +127,7 @@ command in the same output directory continues where it stopped.
 | `--refine-ra` / `--no-refine-ra` | `--refine-ra` | Refit abundances after gene reconciliation. Once genes are reassigned or imputed, re-solve the strain depths (NNLS) on the corrected gene content. |
 | `--impute-min-frac` | `0.5` | Dropout imputation threshold. A gene a strain should carry but with zero coverage is kept (status `imputed`) only if at least this fraction of its neighbouring genes in that strain are covered. |
 | `--reassign-max-residual` | `0.5` | Orphan-gene reassignment tolerance. An observed gene carried by none of the selected strains is attached to the strain subset `T` whose summed depth best matches the gene coverage `y`, and kept only when `|y - sum(depth of T)| / max(y, sum(depth of T))` is at most this value. Otherwise the gene is dropped. |
+| `--include-discarded` | off | Include species discarded by the compatibility policy (see [Collection compatibility](#collection-compatibility)). The bare flag includes all. `--include-discarded=s__A,s__B` includes only those, the rest stay excluded. |
 
 ## Output
 
