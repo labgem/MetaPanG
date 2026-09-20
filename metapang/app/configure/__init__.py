@@ -1,5 +1,6 @@
 import rich_click as click
 
+from metapang.app.configure.edit import edit
 from metapang.app.configure.show import show
 from metapang.app.configure.template import template
 
@@ -29,3 +30,4 @@ def configure() -> None:
 
 configure.add_command(template)
 configure.add_command(show)
+configure.add_command(edit)

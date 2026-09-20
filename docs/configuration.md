@@ -31,6 +31,20 @@ metapang configure show        # the effective configuration
 metapang configure show -s     # the same, annotated with the source of each value
 ```
 
+A configuration file can be opened in your editor (`$VISUAL`/`$EDITOR`) with
+`metapang configure edit`:
+
+```
+metapang configure edit                 # the local file (.metapang-config.*)
+metapang configure edit --scope system  # the user-wide file (~/.config/metapang-config.*)
+metapang --config run.toml configure edit
+```
+
+`--scope` selects the **local** (default) or **system** file. A file passed with
+`metapang --config <path>` takes precedence over `--scope`. If the target does not
+exist, you are asked whether to create it from the template (in the `--format`
+format, `toml` by default).
+
 ## File structure
 
 A configuration file has two top-level sections:

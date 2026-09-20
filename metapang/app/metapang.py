@@ -211,6 +211,7 @@ def metapang(ctx, config: str | None, log_file: str | None, verbosity: str) -> N
     ctx.obj = {}
     ctx.obj["config"] = cfg
     ctx.obj["sources"] = sources
+    ctx.obj["config_path"] = config
 
 
 metapang.add_command(version)
