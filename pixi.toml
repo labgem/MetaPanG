@@ -33,6 +33,7 @@ format-check = "ruff format --check ."
 lint = "ruff check ."
 lint-fix = "ruff check --fix ."
 typecheck = "pyright"
+check = { depends-on = ["format-check", "lint", "typecheck"] }
 install-hooks = "pre-commit install && ln -sf ../../scripts/git-pre-push .git/hooks/pre-push"
 
 [feature.doc.dependencies]
