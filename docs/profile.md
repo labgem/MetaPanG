@@ -34,44 +34,11 @@ command in the same output directory continues where it stopped.
 
 ## Collection compatibility
 
-Each `MetaPanG` release ships a compatibility policy that decides which
-`PanGBank` collections it can profile against.
-
-**Supported versions.** A collection version this release was not validated
-against is rejected up front, before any work is done:
-
-```
-metapang profile -q reads.fastq.gz -b GTDB_refseq@1.0.0
-# Error: 'GTDB_refseq@1.0.0' is not compatible with this MetaPanG version
-#        (supported versions: 2.0.0).
-```
-
-This is a hard check and cannot be overridden; upgrade or downgrade `MetaPanG`
-to match the collection.
-
-**Discarded species.** Within a supported version, some species may be
-discarded by default (for example, unreliable pangenomes).
-
-When any are excluded the run log lists them:
-
-```
-Excluding 1 discarded species from detection (use --include-discarded to include them):
-  - s__Some_species: low quality pangenome
-```
-
-Unlike the version check, discards are overridable with `--include-discarded`:
-
-```
-# include every discarded species
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 --include-discarded
-
-# include only specific ones (comma-separated, note the '=')
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 \
-  --include-discarded=s__Some_species,s__Other_species
-```
-
-Naming a discarded species explicitly through the `:pangenomes` suffix of `-b`
-also profiles it, since that skips detection entirely.
+`MetaPanG` only profiles against collection versions it supports, and discards a
+few unreliable species by default. Naming a discarded species explicitly (through
+the `:pangenomes` suffix of `-b`, or `--include-discarded`) profiles it anyway. The
+full policy and how to override it are described in
+[Managing pangenome data](data.md#collection-compatibility).
 
 ## Inputs
 

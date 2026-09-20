@@ -1,13 +1,14 @@
 # Usage
 
 :::{warning}
-Only the `GTDB_refseq@2.0.0` collection is supported at present. Other
-collections and versions are not yet compatible with `MetaPanG`.
+Only the `GTDB_refseq@2.0.0` collection is supported at present. `MetaPanG` rejects
+an unsupported `collection@version`, and a few species are discarded by default
+within a supported release (see [Collection compatibility](data.md#collection-compatibility)).
 :::
 
-`MetaPanG` exposes three user-facing commands. Tha main one is `profile`. The two
-`search` commands are lower-level tools that expose the matching steps `profile`
-performs internally.
+`profile` is the main command. Around it, `list` and `cache` browse and manage the
+pangenome data a run needs, and the `search` commands expose the matching steps
+`profile` performs internally. Run `metapang --help` to see every command.
 
 ## Global options
 
@@ -42,6 +43,11 @@ Putting these after the command, for example `metapang profile -v debug ...`, is
 error: `-v`, `-c`, and `-l` are options of `metapang`, not of `profile`.
 :::
 
+`metapang list`, `metapang cache`
+: Browse the `PanGBank` catalog and manage the locally cached data, including
+  pre-downloading a collection before a run. See
+  [Managing pangenome data](data.md).
+
 `metapang profile`
 : The main command. Given metagenomic reads and a pangenome collection, it detects
   the species present, maps the reads onto each species pangenome, and resolves the
@@ -62,6 +68,7 @@ error: `-v`, `-c`, and `-l` are options of `metapang`, not of `profile`.
 :maxdepth: 1
 :hidden:
 
+data
 profile
 search-bank
 search-pangenome
