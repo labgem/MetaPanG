@@ -33,6 +33,14 @@ metapang list GTDB_refseq@2.0.0
 
 The version defaults to `latest` when omitted.
 
+Add `--open` to open the corresponding PanGBank web page in a browser (the release
+page for a `collection[@version]`, or the `PanGBank` site otherwise). On a headless
+machine where no browser can be launched, the URL is printed instead.
+
+```
+metapang list GTDB_refseq@2.0.0 --open
+```
+
 ## `metapang cache`
 
 The files needed for a run (the collection index, and the graph and pangenome of

@@ -1,3 +1,5 @@
+import webbrowser
+
 import rich_click as click
 from rich.console import Console
 from rich.table import Table
@@ -12,6 +14,13 @@ from metapang.pg.api import (
 
 def _cache(ctx) -> PanGBank_Cache:
     return PanGBank_Cache(ctx.obj.get("config").pangbank)
+
+
+def _open_url(console: Console, url: str) -> None:
+    if webbrowser.open(url):
+        console.print(f"Opening {url}")
+    else:
+        console.print(f"Open this URL: {url}")
 
 
 def _list_collections(api, console: Console) -> None:
@@ -44,8 +53,7 @@ def _web_url(api, release) -> str:
     return f"{base}/collection/{release.idx}/{release.version}"
 
 
-def _list_release(api, console: Console, name: str, version: str) -> None:
-    release = api.get_collection(name, version)
+def _list_release(api, console: Console, release) -> None:
     supported = compat.is_supported(release.name, release.version)
     console.print(
         f"[bold]{release.full_name}[/]  "
@@ -72,8 +80,14 @@ def _list_release(api, console: Console, name: str, version: str) -> None:
 
 @click.command(name="list")
 @click.argument("collection", required=False)
+@click.option(
+    "--open",
+    "open_",
+    is_flag=True,
+    help="Open the PanGBank web page in a browser.",
+)
 @click.pass_context
-def list_(ctx, collection) -> None:
+def list_(ctx, collection, open_) -> None:
     """
     List PanGBank collections, or one collection release in detail.
 
@@ -82,14 +96,21 @@ def list_(ctx, collection) -> None:
       metapang list
       metapang list GTDB_refseq
       metapang list GTDB_refseq@2.0.0
+      metapang list GTDB_refseq@2.0.0 --open
     """
     console = Console()
     api = _cache(ctx).api
     try:
         if collection is None:
             _list_collections(api, console)
+            url = api.url.replace("-api", "", 1)
         else:
             name, version, _ = parse_collection_name_version(collection)
-            _list_release(api, console, name, version)
+            release = api.get_collection(name, version)
+            _list_release(api, console, release)
+            url = _web_url(api, release)
     except PanGBank_APIError as e:
         raise click.ClickException(str(e)) from e
+
+    if open_:
+        _open_url(console, url)
