@@ -6,10 +6,12 @@ import msgspec
 import rich_click as click
 
 from metapang import __version__ as metapang_version
+from metapang.app.cache import cache
 from metapang.app.checkhealth import checkhealth
 from metapang.app.configure import configure
 from metapang.app.index import index
 from metapang.app.issue import issue
+from metapang.app.list import list_
 from metapang.app.profile import profile
 from metapang.app.search import search
 from metapang.app.tools import tools
@@ -44,14 +46,13 @@ def signal_interrupt_handler(signal, _):
 
 def metapang_epilog() -> str:
     """Return the CLI help epilog with version and project links."""
-    return f"""
-    ---\n
-    MetaPanG v{metapang_version}\n
-    Github: [link=https://github.com/LABGeM/MetaPanG]LABGeM/MetaPanG[/]\n
-    Documentation: [link=https://github.com/LABGeM/MetaPanG]MetaPanG[/]\n
-    Issues: [link=https://github.com/LABGeM/MetaPanG/issues]MetaPanG/issues[/]\n
-    ---\n
-    """
+    repo = "https://github.com/LABGeM/MetaPanG"
+    pangbank = "https://pangbank.genoscope.cns.fr"
+    return (
+        f"[b]MetaPanG[/] [dim]v{metapang_version}[/] - [link={repo}]{repo}[/]\n\n"
+        f"PanGBank - [link={pangbank}]{pangbank}[/]\n\n"
+        f"Issues - [link={repo}/issues]{repo}/issues[/]"
+    )
 
 
 click.rich_click.COMMAND_GROUPS = {
@@ -63,18 +64,32 @@ click.rich_click.COMMAND_GROUPS = {
             ],
         },
         {
-            "name": "Advanced commands",
+            "name": "Data",
+            "commands": ["list", "cache"],
+        },
+        {
+            "name": "Setup",
+            "commands": ["configure", "checkhealth"],
+        },
+        {
+            "name": "About",
+            "commands": ["version", "issue"],
+        },
+        {
+            "name": "Advanced",
             "commands": [
                 "search",
                 "index",
                 "tools",
             ],
         },
+    ],
+    "metapang cache": [
         {
-            "name": "Utilities",
-            "commands": ["configure", "version", "checkhealth", "issue"],
+            "name": "Commands",
+            "commands": ["list", "path", "fetch", "clear"],
         },
-    ]
+    ],
 }
 
 click.rich_click.OPTION_GROUPS = {
@@ -112,6 +127,21 @@ click.rich_click.STYLE_OPTIONS_TABLE_LEADING = 1
 click.rich_click.STYLE_OPTIONS_TABLE_BOX = "SIMPLE"
 
 METAPANG_CONTEXT = dict(default_map=defaultdict(dict))
+
+
+def fill_help_placeholder(command, param_name, default) -> None:
+    """Replace `__placeholder__` in a command option's help with its default value."""
+    if command is None:
+        return
+    for param in command.params:
+        if (
+            isinstance(param, click.Option)
+            and param.name == param_name
+            and param.help
+            and "__placeholder__" in param.help
+        ):
+            msg = f"[gray42]\\[default: {default}][/]"
+            param.help = param.help.replace("__placeholder__", msg)
 
 
 def configure_help_and_defaults(command, config, sources, def_map):
@@ -166,6 +196,11 @@ def metapang(ctx, config: str | None, log_file: str | None, verbosity: str) -> N
     """
     metapang_setup_logger(level=verbosity.upper(), log_file=log_file)
     cfg, sources = configuration(Path(config) if config else None)
+    fill_help_placeholder(
+        ctx.command.commands.get("cache"),
+        "cache_path",
+        cfg.pangbank.cache_directory,
+    )
     configure_help_and_defaults(
         ctx.command,
         msgspec.to_builtins(cfg)["commands"],
@@ -186,3 +221,5 @@ metapang.add_command(tools)
 metapang.add_command(configure)
 metapang.add_command(checkhealth)
 metapang.add_command(issue)
+metapang.add_command(cache)
+metapang.add_command(list_)
