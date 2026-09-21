@@ -51,6 +51,7 @@ metagraph = ["mg"]
 dev = ["app", "dev", "doc"]
 
 [tasks]
+setup = "pixi install -e default -e metagraph"
 metapang = "metapang"
 test = "pytest"
 docker = 'docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -f packaging/docker/Dockerfile -t ghcr.io/labgem/metapang:$(grep -m1 "^version = " pixi.toml | grep -oE "[0-9]+(\.[0-9]+)+") -t ghcr.io/labgem/metapang:latest .'
