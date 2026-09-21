@@ -17,14 +17,7 @@ together with the additional data structures that `MetaPanG` requires.
 The files needed for a run are downloaded from `PanGBank` on demand and cached
 locally, so each resource is retrieved only once and reused by later runs.
 
-## Quick start
-
-```
-pixi install
-pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
-```
-
-See [Installation](installation.md) for the other supported setups, and
+See [Installation](installation.md) for the supported setups, and
 [Usage](usage.md) for a walkthrough.
 
 :::{toctree}
