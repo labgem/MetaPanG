@@ -19,7 +19,7 @@
           name = "metapang";
           packages = [ pkgs.pixi ];
           shellHook = ''
-            exec pixi shell -e dev --change-ps1 false
+            eval "$(pixi shell-hook -e dev)"
           '';
         };
       });
