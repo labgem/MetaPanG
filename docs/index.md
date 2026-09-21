@@ -1,7 +1,7 @@
 # MetaPanG
 
 :::{note}
-`MetaPanG` is under active development. A first release is coming soon.
+`MetaPanG` is under active development.
 :::
 
 `MetaPanG` is a tool for strain-level profiling of metagenomic samples against
