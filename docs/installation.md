@@ -39,12 +39,13 @@ for you, in two isolated environments wired together, so the manual `metagraph`
 step above is not needed:
 
 ```
-pixi install
+pixi run setup
 pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
-`pixi run` sets everything up on first use. Use `pixi shell` to enter the
-environment and call `metapang` directly.
+`pixi run setup` provisions both environments (the app and its wired `metagraph`).
+After that, use `pixi run metapang ...`, or `pixi shell` to enter the environment
+and call `metapang` directly.
 
 ## With `Docker`
 
