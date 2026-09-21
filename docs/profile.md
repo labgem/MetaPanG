@@ -6,7 +6,7 @@ collection. This is the main `MetaPanG` command.
 ## Synopsis
 
 ```
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 [OPTIONS]
+metapang profile QUERIES... -b GTDB_refseq@2.0.0 [OPTIONS]
 ```
 
 ## How it works
@@ -42,10 +42,10 @@ full policy and how to override it are described in
 
 ## Inputs
 
-`-q`, `--query` (required, repeatable)
-: Metagenomic reads to profile (fasta/fastq, gzipped accepted). Repeat `-q` for
-  several files, for example paired-end or split reads. They are all folded into a
-  single sample. The stem of the first file is the sample name.
+`QUERIES...` (required, positional)
+: Sequence files to profile (fasta/fastq, gzipped ok). Pass one or
+  several, for example paired-end or split reads, or a shell glob such as
+  `*.fastq.gz`. Stem of the first file is used as the sample name.
 
 `-b`, `--pangbank` (default `GTDB_refseq`)
 : The collection to profile against, as `collection[@version][:pangenomes]`.
@@ -57,13 +57,13 @@ full policy and how to override it are described in
 
   ```
   # detect and profile every species found in the sample
-  metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+  metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0
 
   # profile one named species, skipping detection
-  metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae
+  metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae
 
   # profile several targets (names and/or numeric ids)
-  metapang profile -q reads.fastq.gz \
+  metapang profile reads.fastq.gz \
     -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae,s__Abiotrophia_defectiva,10805
   ```
 
@@ -157,10 +157,10 @@ counts, the per-strain `components`, and the selection `trace`.
 
 ```
 # whole-sample profiling with 8 threads
-metapang profile -q reads_1.fastq.gz -q reads_2.fastq.gz \
+metapang profile reads_1.fastq.gz reads_2.fastq.gz \
   -b GTDB_refseq@2.0.0 -t 8 -o sample_profile
 
 # target one species and allow more strains
-metapang profile -q reads.fastq.gz \
+metapang profile reads.fastq.gz \
   -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae -k 20
 ```

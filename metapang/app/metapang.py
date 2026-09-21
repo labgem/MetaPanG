@@ -97,7 +97,6 @@ click.rich_click.OPTION_GROUPS = {
         {
             "name": "Input / output",
             "options": [
-                "--query",
                 "--pangbank",
                 "--output",
                 "--threads",

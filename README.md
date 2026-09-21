@@ -67,7 +67,7 @@ step above is not needed:
 
 ```
 pixi run setup
-pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+pixi run metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
 `pixi run setup` provisions both environments (the app and its wired `metagraph`).
@@ -81,7 +81,7 @@ The docker image bundles all dependencies.
 ```
 docker run --rm -t -v /path/to/data:/data -w /data \
   -v metapang-cache:/cache -e METAPANG_PANGBANK_CACHE_DIRECTORY=/cache \
-  ghcr.io/labgem/metapang:latest profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+  ghcr.io/labgem/metapang:latest profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
 > [!IMPORTANT]
@@ -108,15 +108,16 @@ apptainer build metapang.sif docker://ghcr.io/labgem/metapang:latest
 Profile a sample against a pangenome collection:
 
 ```
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
-Several `-q` files (for example paired-end or split reads) are treated as a single
-sample. The `-b/--pangbank` argument accepts `collection[@version][:species]`; adding
+Several files (for example paired-end or split reads, or a glob like `*.fastq.gz`)
+are treated as a single sample. The `-b/--pangbank` argument accepts
+`collection[@version][:species]`; adding
 a species suffix skips detection and profiles only that species:
 
 ```
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae
+metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae
 ```
 
 See the [documentation](https://metapang.readthedocs.io) for the full usage guide.

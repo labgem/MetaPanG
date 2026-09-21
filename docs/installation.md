@@ -40,7 +40,7 @@ step above is not needed:
 
 ```
 pixi run setup
-pixi run metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+pixi run metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
 `pixi run setup` provisions both environments (the app and its wired `metagraph`).
@@ -54,7 +54,7 @@ The docker image bundles all dependencies.
 ```
 docker run --rm -t -v /path/to/data:/data -w /data \
   -v metapang-cache:/cache -e METAPANG_PANGBANK_CACHE_DIRECTORY=/cache \
-  ghcr.io/labgem/metapang:latest profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+  ghcr.io/labgem/metapang:latest profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
 :::{important}

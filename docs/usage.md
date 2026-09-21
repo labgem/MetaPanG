@@ -29,13 +29,13 @@ metapang [GLOBAL OPTIONS] COMMAND [COMMAND OPTIONS]
 
 ```
 # more verbose profiling
-metapang -v debug profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+metapang -v debug profile reads.fastq.gz -b GTDB_refseq@2.0.0
 
 # use a specific configuration file
-metapang -c config.toml profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+metapang -c config.toml profile reads.fastq.gz -b GTDB_refseq@2.0.0
 
 # combine global options
-metapang -v debug -l run.log profile -q reads.fastq.gz -b GTDB_refseq@2.0.0
+metapang -v debug -l run.log profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
 :::{note}

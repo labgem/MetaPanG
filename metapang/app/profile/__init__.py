@@ -450,20 +450,20 @@ def write_profile_outputs(
 
 
 @click.command()
+@click.argument(
+    "query_args",
+    nargs=-1,
+    type=click.Path(exists=True, readable=True, path_type=Path),
+    metavar="QUERIES...",
+)
 @click.option(
     "--query",
     "-q",
     "query",
     multiple=True,
     type=click.Path(exists=True, readable=True, path_type=Path),
-    required=True,
-    help="""
-        \b
-        Metagenomic reads to profile (fasta/q, gzipped ok)\n
-        \b
-        Repeat [bold]-q[/] for several files (e.g. paired-end or split reads);
-        they are all treated as a single sample.
-    """,
+    hidden=True,
+    help="Deprecated: pass query files as positional arguments instead.",
 )
 @click.option(
     "--pangbank",
@@ -635,6 +635,7 @@ def write_profile_outputs(
 @click.pass_context
 def profile(
     ctx,
+    query_args,
     query,
     pangbank,
     output,
@@ -652,6 +653,10 @@ def profile(
 ) -> None:
     """
     [bold]Strain-level metagenomic profiling against a pangenome collection[/]
+
+    \b
+    [bold]QUERIES[/] are the sequence files to profile (fasta/q, gzipped ok).
+    Pass one or several (e.g. paired-end or split reads, or a glob like *.fastq.gz).
 
     \b
     [bold]Output[/] (per detected species, under the output directory)
@@ -705,7 +710,12 @@ def profile(
 
     collection_proxy = pangbank_cache.proxy(collection_release)
 
-    queries = list(query)
+    queries = list(query_args) + list(query)
+    if not queries:
+        raise click.UsageError(
+            "provide at least one query file, e.g. "
+            "'metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0'"
+        )
     sample_name = queries[0].stem
     output_directory = Path(output.format(query=sample_name, collection=collection))
     output_directory.mkdir(parents=True, exist_ok=True)

@@ -137,7 +137,7 @@ to see, per release, whether it is supported and how many species are discarded.
 against is rejected up front, before any work is done:
 
 ```
-metapang profile -q reads.fastq.gz -b GTDB_refseq@1.0.0
+metapang profile reads.fastq.gz -b GTDB_refseq@1.0.0
 # Error: 'GTDB_refseq@1.0.0' is not compatible with this MetaPanG version
 #        (supported versions: 2.0.0).
 ```
@@ -159,10 +159,10 @@ Unlike the version check, discards are overridable with `--include-discarded`:
 
 ```
 # include every discarded species
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 --include-discarded
+metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0 --include-discarded
 
 # include only specific ones (comma-separated, note the '=')
-metapang profile -q reads.fastq.gz -b GTDB_refseq@2.0.0 \
+metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0 \
   --include-discarded=s__Some_species,s__Other_species
 ```
 
