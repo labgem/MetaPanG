@@ -43,7 +43,10 @@ pixi global install -c conda-forge -c bioconda metagraph
 
 They are installed as **two separate** global environments: `graph-tool` (a `metapang` dependency) and `metagraph` link incompatible Boost libraries and cannot coexist in one environment. Both binaries are located at `~/.pixi/bin`, so `metapang` finds `metagraph` automatically. Check the setup with `metapang checkhealth`.
 
-### 2. With Docker
+<details>
+<summary><b>2. With Docker</b></summary>
+
+<br>
 
 The docker image bundles all dependencies.
 
@@ -53,8 +56,7 @@ docker run --rm -t -v /path/to/data:/data -w /data \
   ghcr.io/labgem/metapang:latest profile reads.fastq.gz -b GTDB_refseq@2.0.0
 ```
 
-> [!IMPORTANT]
-> `MetaPanG` caches the pangenomes and databases it downloads. By default the cache
+> **Important:** `MetaPanG` caches the pangenomes and databases it downloads. By default the cache
 > is `.metapang-cache` relative to the working directory. Inside a container, anything
 > written to the filesystem is lost when using `--rm`, so an unmounted cache is
 > re-downloaded on every run. Set an explicit cache path with
@@ -68,11 +70,16 @@ An Apptainer/Singularity image can be built from the same image:
 apptainer build metapang.sif docker://ghcr.io/labgem/metapang:latest
 ```
 
-### 3. From source
+</details>
+
+<details>
+<summary><b>3. From source</b></summary>
+
+<br>
 
 Clone the repository, then set it up with `pixi` (recommended) or `conda`.
 
-#### A. With `pixi`
+**A. With `pixi`**
 
 ```
 git clone https://github.com/LABGeM/MetaPanG.git
@@ -83,7 +90,7 @@ pixi run metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0
 
 `pixi run setup` provisions required environments. Use `pixi run metapang ...`, or `pixi shell` to call `metapang` directly.
 
-#### B. With `conda`
+**B. With `conda`**
 
 `MetaPanG` depends on `graph-tool`, which is not available on PyPI. A conda environment file is provided at the repository root:
 
@@ -96,13 +103,14 @@ conda activate metapang-env
 
 This installs `graph-tool` from conda and the remaining dependencies, declared in `pyproject.toml`, with pip.
 
-> [!WARNING]
-> `MetaPanG` also requires `metagraph >= 0.5.1`. Install it from its [documentation](https://github.com/ratschlab/metagraph).
+> **Warning:** `MetaPanG` also requires `metagraph >= 0.5.1`. Install it from its [documentation](https://github.com/ratschlab/metagraph).
 > `metagraph` is not part of the conda environment above: it currently cannot share
 > an environment with `graph-tool`, because the two link incompatible versions of the
 > Boost libraries. Make `metagraph` available on the `PATH` (the default is the
 > `metagraph` executable), or point `MetaPanG` at it with
 > `metapang profile --metagraph-path /path/to/metagraph`.
+
+</details>
 
 ## Quick start
 
