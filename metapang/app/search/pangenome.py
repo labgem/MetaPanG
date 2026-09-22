@@ -7,6 +7,7 @@ from metapang.core.graph import PWGraph, PWGraphAnnotator
 from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
 from metapang.logger import mp_log
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
+from metapang.pg.local import LOCAL_COLLECTION, LocalCacheProxy, is_built, local_dir
 from metapang.utils.time import timer
 
 
@@ -25,11 +26,12 @@ from metapang.utils.time import timer
 )
 @click.option(
     "--pangbank",
-    "-p",
+    "-b",
     type=str,
     help="""
-        Use a pangenome dbg from PanGBank (format: collection[@version]:name)\n
-        e.g. GTDB_refseq:s__Abiotrophia_defectiva, GTDB_refseq@v1.0.0:s__Abiotrophia_defectiva
+        Use a pangenome dbg from PanGBank (format: collection[@version]:name), or a
+        local pangenome built with 'metapang cache add' (format: local:name)\n
+        e.g. GTDB_refseq@2.0.0:s__Abiotrophia_defectiva, local:my_pangenome
     """,
 )
 @click.option(
@@ -106,41 +108,70 @@ def pangenome(
         config = ctx.obj.get("config")
 
         if pangbank:
-            pangbank_cache = PanGBank_Cache(config.pangbank)
             collection, collection_version, pangenome_name = (
                 parse_collection_name_version(pangbank)
             )
 
             if not pangenome_name:
                 mp_log.error(
-                    f"Invalid pangbank format: '{pangbank}', expected 'collection[@version]:name'"
+                    f"Invalid format: '{pangbank}', expected "
+                    "'collection[@version]:name' or 'local:name'"
                 )
                 sys.exit(1)
 
-            if not pangbank_cache.api.has_collection(collection, collection_version):
-                mp_log.error(
-                    f"Collection '{collection}@{collection_version}' not found in PanGBank."
+            if collection == LOCAL_COLLECTION:
+                store = PanGBank_Cache(config.pangbank)
+                if not is_built(store.directory, pangenome_name):
+                    mp_log.error(
+                        f"local pangenome '{pangenome_name}' is not in the cache. "
+                        "Build it with 'metapang cache add <pangenome.h5> "
+                        f"--name {pangenome_name}'"
+                    )
+                    sys.exit(1)
+                proxy = LocalCacheProxy(local_dir(store.directory, pangenome_name))
+                mp_log.info(f"Using local pangenome 'local:{pangenome_name}'")
+                dbg_directory = proxy.get_dbg(pangenome_name)
+                dbg_file = dbg_directory / f"{pangenome_name}.dbg"
+                annotations_file = (
+                    dbg_directory / f"{pangenome_name}.family.row_diff_brwt.annodbg"
                 )
-                sys.exit(1)
+                pangenome_gt = dbg_directory / f"{pangenome_name}.gt"
+            else:
+                pangbank_cache = PanGBank_Cache(config.pangbank)
 
-            collection_release = pangbank_cache.api.get_collection(
-                collection, collection_version
-            )
+                if not pangbank_cache.api.has_collection(
+                    collection, collection_version
+                ):
+                    mp_log.error(
+                        f"Collection '{collection}@{collection_version}' "
+                        "not found in PanGBank."
+                    )
+                    sys.exit(1)
 
-            if not pangbank_cache.api.has_pangenome(collection_release, pangenome_name):
-                mp_log.error(
-                    f"Pangenome '{pangenome_name}' not found in {collection_release.full_name}"
+                collection_release = pangbank_cache.api.get_collection(
+                    collection, collection_version
                 )
-                sys.exit(1)
 
-            proxy = pangbank_cache.proxy(collection_release)
-            mp_log.info(
-                f"Using pangenome: '{collection_release.full_name}:{pangenome_name}' from PanGBank"
-            )
-            dbg_directory = proxy.get_dbg(pangenome_name)
-            dbg_file = dbg_directory / f"{pangenome_name}.dbg"
-            annotations_file = dbg_directory / f"{pangenome_name}.row_diff_brwt.annodbg"
-            pangenome_gt = dbg_directory / f"{pangenome_name}.gt"
+                if not pangbank_cache.api.has_pangenome(
+                    collection_release, pangenome_name
+                ):
+                    mp_log.error(
+                        f"Pangenome '{pangenome_name}' not found in "
+                        f"{collection_release.full_name}"
+                    )
+                    sys.exit(1)
+
+                proxy = pangbank_cache.proxy(collection_release)
+                mp_log.info(
+                    f"Using pangenome: '{collection_release.full_name}:"
+                    f"{pangenome_name}' from PanGBank"
+                )
+                dbg_directory = proxy.get_dbg(pangenome_name)
+                dbg_file = dbg_directory / f"{pangenome_name}.dbg"
+                annotations_file = (
+                    dbg_directory / f"{pangenome_name}.row_diff_brwt.annodbg"
+                )
+                pangenome_gt = dbg_directory / f"{pangenome_name}.gt"
         else:
             dbg_file = dbg
             annotations_file = annotations
