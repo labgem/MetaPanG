@@ -67,8 +67,8 @@ metapang cache --path /data/metapang-cache list
 ### Inspecting the cache
 
 `metapang cache list` shows the cached collections and their contents, one row per
-item, with its kind (`index`, `pangenome`, or `dbg`), completeness status, and
-size, followed by the cache total.
+item, with its kind (`index`, `pangenome`, `dbg`, or `local`), completeness status,
+and size, followed by the cache total.
 
 ```
 metapang cache list
@@ -127,6 +127,35 @@ metapang cache clear GTDB_refseq@2.0.0:s__Abiotrophia_defectiva
 
 Add `-y` to skip the confirmation prompt.
 
+## Local pangenomes
+
+Besides `PanGBank` collections, you can profile and search against your own
+pangenome: a `ppanggolin` `.h5` file. `metapang cache add` builds required indexes
+and put them into the cache under a name you choose. It is then referenced as `local:<name>` anywhere a collection is expected.
+
+The result is stored under `<cache>/local/<name>`.
+
+```
+# build the graphs once, from the .h5
+metapang cache add my_species.h5 --name my_species
+
+# profile reads against it
+metapang profile reads.fastq.gz -b local:my_species
+
+```
+
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `-n`, `--name` | required | Name to register the pangenome under (`local:<name>`). |
+| `-k`, `--kmer-size` | `25` | K-mer size for the de Bruijn graph. |
+| `-t`, `--threads` | `1` | Build threads. |
+| `--metagraph-path` | `metagraph` | Path to the `metagraph` binary. |
+| `-f`, `--force` | off | Rebuild even if already present. |
+
+Local pangenomes appear in `metapang cache list` under the `local` collection, and
+are removed with `metapang cache clear local:<name>`.
+
 ## Collection compatibility
 
 Each `MetaPanG` release ships a compatibility policy that decides which
@@ -141,9 +170,6 @@ metapang profile reads.fastq.gz -b GTDB_refseq@1.0.0
 # Error: 'GTDB_refseq@1.0.0' is not compatible with this MetaPanG version
 #        (supported versions: 2.0.0).
 ```
-
-This is a hard check and cannot be overridden; upgrade or downgrade `MetaPanG`
-to match the collection.
 
 **Discarded species.** Within a supported version, some species may be
 discarded by default (for example, unreliable pangenomes).
