@@ -21,6 +21,13 @@ from metapang.core.profile.strains import (
 from metapang.logger import log_indent, metapang_add_log_file, mp_log
 from metapang.pg import compat
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
+from metapang.pg.local import (
+    LOCAL_COLLECTION,
+    LocalCacheProxy,
+    PangenomeSource,
+    is_built,
+    local_dir,
+)
 from metapang.report.profile import write_profile_report
 from metapang.utils.time import timer
 
@@ -254,7 +261,7 @@ def phase1(
 def phase2_mapping(
     state: ProfileState,
     candidate: str,
-    cache: PanGBank_Cache.CollectionCacheProxy,
+    cache: PangenomeSource,
     output: Path,
     query: list[Path],
     threads: int,
@@ -569,17 +576,20 @@ def profile_refit(
     type=str,
     help="""
         \b
-        PanGBank collection to profile against __placeholder__\n
+        PanGBank collection, or a local pangenome, to profile against __placeholder__\n
         \b
-        > Format: [bold]collection[/]\\[@version]\\[:pangenomes]
+        > Format: [bold]collection[/]\\[@version]\\[:pangenomes], or [bold]local:name[/]
             - [i]version[/] is optional ('latest' by default)
             - [i]pangenomes[/] is optional: a comma-separated list, each item a
               species name or a numeric PanGBank id. Give one or more to profile
               exactly those, otherwise every detected species is profiled.
+            - [i]local:name[/] profiles a pangenome built with 'metapang cache add'.
+
         \b
         > Examples:
             [bold]GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae[/]
             [bold]GTDB_refseq@2.0.0:s__Klebsiella_pneumoniae,s__Abiotrophia defectiva,10805[/]
+            [bold]local:my_pangenome[/]
     """,
 )
 @click.option(
@@ -805,49 +815,65 @@ def profile(
         )
         return
 
-    pangbank_cache = PanGBank_Cache(ctx.obj.get("config").pangbank)
     collection, collection_version, pangenome = parse_collection_name_version(pangbank)
 
-    if not pangbank_cache.api.has_collection(collection, collection_version):
-        mp_log.error(
-            f"Collection '{collection}@{collection_version}' not found in PanGBank."
-        )
-        sys.exit(1)
-
-    collection_release = pangbank_cache.api.get_collection(
-        collection, collection_version
-    )
-
-    compat.check_supported(collection_release.name, collection_release.version)
-
-    requested_pangenomes: list[str] = []
-    for token in pangenome.split(",") if pangenome else []:
-        name = token.strip()
+    if collection == LOCAL_COLLECTION:
+        name = (pangenome or "").strip()
         if not name:
-            continue
-        if name.isdigit():
-            resolved = pangbank_cache.api.get_pangenome_name(
-                collection_release, int(name)
+            raise click.UsageError("'-b local:<name>' requires a pangenome name")
+        store = PanGBank_Cache(ctx.obj.get("config").pangbank)
+        if not is_built(store.directory, name):
+            raise click.UsageError(
+                f"local pangenome '{name}' is not in the cache. Build it with "
+                f"'metapang cache add <pangenome.h5> --name {name}'"
             )
-            mp_log.info(f"Resolved pangenome id {name} to '{resolved}'")
-            name = resolved
-        if not pangbank_cache.api.has_pangenome(collection_release, name):
+        collection_proxy = LocalCacheProxy(local_dir(store.directory, name))
+        requested_pangenomes: list[str] = [name]
+        collection = f"{LOCAL_COLLECTION}:{name}"
+        collection_version = LOCAL_COLLECTION
+    else:
+        pangbank_cache = PanGBank_Cache(ctx.obj.get("config").pangbank)
+
+        if not pangbank_cache.api.has_collection(collection, collection_version):
             mp_log.error(
-                f"Pangenome '{name}' not found in {collection_release.full_name}"
+                f"Collection '{collection}@{collection_version}' not found in PanGBank."
             )
             sys.exit(1)
-        reason = compat.discard_reason(
-            collection_release.name, collection_release.version, name
-        )
-        if reason:
-            mp_log.warning(
-                f"Pangenome '{name}' is discarded for {collection_release.full_name} "
-                f"({reason}). Profiling it anyway."
-            )
-        if name not in requested_pangenomes:
-            requested_pangenomes.append(name)
 
-    collection_proxy = pangbank_cache.proxy(collection_release)
+        collection_release = pangbank_cache.api.get_collection(
+            collection, collection_version
+        )
+
+        compat.check_supported(collection_release.name, collection_release.version)
+
+        requested_pangenomes = []
+        for token in pangenome.split(",") if pangenome else []:
+            name = token.strip()
+            if not name:
+                continue
+            if name.isdigit():
+                resolved = pangbank_cache.api.get_pangenome_name(
+                    collection_release, int(name)
+                )
+                mp_log.info(f"Resolved pangenome id {name} to '{resolved}'")
+                name = resolved
+            if not pangbank_cache.api.has_pangenome(collection_release, name):
+                mp_log.error(
+                    f"Pangenome '{name}' not found in {collection_release.full_name}"
+                )
+                sys.exit(1)
+            reason = compat.discard_reason(
+                collection_release.name, collection_release.version, name
+            )
+            if reason:
+                mp_log.warning(
+                    f"Pangenome '{name}' is discarded for "
+                    f"{collection_release.full_name} ({reason}). Profiling it anyway."
+                )
+            if name not in requested_pangenomes:
+                requested_pangenomes.append(name)
+
+        collection_proxy = pangbank_cache.proxy(collection_release)
 
     queries = list(query_args) + list(query)
     if not queries:
@@ -921,6 +947,7 @@ def profile(
                 )
                 for species, reason in sorted(discarded.items()):
                     mp_log.info(f"  - {species}: {reason}")
+            assert isinstance(collection_proxy, PanGBank_Cache.CollectionCacheProxy)
             candidates = phase1(
                 state,
                 collection_proxy,
