@@ -10,6 +10,13 @@ from rich.table import Table
 from metapang.logger import mp_log
 from metapang.pg import compat
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
+from metapang.pg.local import (
+    LOCAL_COLLECTION,
+    build_local_pangenome,
+    is_built,
+    local_dir,
+    local_root,
+)
 
 
 def _cache(ctx) -> PanGBank_Cache:
@@ -67,6 +74,54 @@ def path(ctx) -> None:
     click.echo(str(_cache(ctx).directory))
 
 
+@cache.command()
+@click.argument(
+    "pangenome", type=click.Path(exists=True, dir_okay=False, path_type=Path)
+)
+@click.option(
+    "--name",
+    "-n",
+    required=True,
+    help="Name to register the pangenome under (referenced as 'local:<name>').",
+)
+@click.option(
+    "--kmer-size",
+    "-k",
+    type=int,
+    help="K-mer size for the de Bruijn graph __placeholder__.",
+)
+@click.option("--threads", "-t", type=int, help="Build threads __placeholder__.")
+@click.option(
+    "--metagraph-path",
+    help="Path to the metagraph binary __placeholder__.",
+)
+@click.option("--force", "-f", is_flag=True, help="Rebuild even if already present.")
+@click.pass_context
+def add(ctx, pangenome, name, kmer_size, threads, metagraph_path, force) -> None:
+    """
+    Build a local pangenome (.h5) into the cache as 'local:<name>'.
+
+    \b
+    Profile against it with:
+      metapang profile reads.fastq.gz -b local:<name>
+    """
+    import tempfile
+
+    store = _cache(ctx)
+    with tempfile.TemporaryDirectory(prefix="metapang-build-") as tmp:
+        dbg_dir = build_local_pangenome(
+            pangenome,
+            name,
+            kmer_size,
+            store.directory,
+            Path(tmp),
+            threads,
+            metagraph_path,
+            force=force,
+        )
+    mp_log.info(f"Added local:{name}: {dbg_dir}")
+
+
 @cache.command(name="list")
 @click.pass_context
 def list_(ctx) -> None:
@@ -75,40 +130,55 @@ def list_(ctx) -> None:
     root = store.collection_directory
     console = Console()
 
-    if not root.exists() or not any(root.iterdir()):
-        console.print(f"Cache is empty ({store.directory})")
-        return
-
     table = Table("collection", "version", "item", "kind", "status", "size")
-    for coll in sorted(p for p in root.iterdir() if p.is_dir()):
-        for ver in sorted(p for p in coll.iterdir() if p.is_dir()):
-            if (ver / "bank_index").exists():
-                table.add_row(
-                    coll.name,
-                    ver.name,
-                    "bank_index",
-                    "index",
-                    "-",
-                    _human(_dir_size(ver / "bank_index")),
-                )
-            pangenomes = ver / "pangenomes"
-            if pangenomes.exists():
-                for h5 in sorted(pangenomes.glob("*.h5")):
+    if root.exists():
+        for coll in sorted(p for p in root.iterdir() if p.is_dir()):
+            for ver in sorted(p for p in coll.iterdir() if p.is_dir()):
+                if (ver / "bank_index").exists():
                     table.add_row(
                         coll.name,
                         ver.name,
-                        h5.stem,
-                        "pangenome",
+                        "bank_index",
+                        "index",
                         "-",
-                        _human(h5.stat().st_size),
+                        _human(_dir_size(ver / "bank_index")),
                     )
-            dbg = ver / "dbg"
-            if dbg.exists():
-                for d in sorted(p for p in dbg.iterdir() if p.is_dir()):
-                    status = "complete" if _dbg_complete(d) else "partial"
-                    table.add_row(
-                        coll.name, ver.name, d.name, "dbg", status, _human(_dir_size(d))
-                    )
+                pangenomes = ver / "pangenomes"
+                if pangenomes.exists():
+                    for h5 in sorted(pangenomes.glob("*.h5")):
+                        table.add_row(
+                            coll.name,
+                            ver.name,
+                            h5.stem,
+                            "pangenome",
+                            "-",
+                            _human(h5.stat().st_size),
+                        )
+                dbg = ver / "dbg"
+                if dbg.exists():
+                    for d in sorted(p for p in dbg.iterdir() if p.is_dir()):
+                        status = "complete" if _dbg_complete(d) else "partial"
+                        table.add_row(
+                            coll.name,
+                            ver.name,
+                            d.name,
+                            "dbg",
+                            status,
+                            _human(_dir_size(d)),
+                        )
+
+    lroot = local_root(store.directory)
+    if lroot.exists():
+        for d in sorted(p for p in lroot.iterdir() if p.is_dir()):
+            status = "complete" if is_built(store.directory, d.name) else "partial"
+            table.add_row(
+                LOCAL_COLLECTION, "-", d.name, "local", status, _human(_dir_size(d))
+            )
+
+    if not table.rows:
+        console.print(f"Cache is empty ({store.directory})")
+        return
+
     console.print(table)
     console.print(f"Total: {_human(_dir_size(store.directory))}  ({store.directory})")
 
@@ -127,12 +197,22 @@ def clear(ctx, target, yes) -> None:
       metapang cache clear GTDB_refseq
       metapang cache clear GTDB_refseq@2.0.0
       metapang cache clear GTDB_refseq@2.0.0:s__Abiotrophia_defectiva
+      metapang cache clear local
+      metapang cache clear local:my_pangenome
     """
     store = _cache(ctx)
 
     if target is None:
         to_remove = [store.directory]
         label = f"the entire cache ({store.directory})"
+    elif (parsed := parse_collection_name_version(target))[0] == LOCAL_COLLECTION:
+        _, _, pangenome = parsed
+        if pangenome:
+            to_remove = [local_dir(store.directory, pangenome)]
+            label = f"local:{pangenome}"
+        else:
+            to_remove = [local_root(store.directory)]
+            label = "all local pangenomes"
     else:
         name, version, pangenome = parse_collection_name_version(target)
         base = store.collection_directory / name
@@ -181,19 +261,19 @@ def _remove(path: Path) -> None:
 @cache.command()
 @click.argument("target")
 @click.option(
-    "--index/--no-index", "do_index", default=True, help="Fetch the release bank index."
+    "--index/--no-index",
+    "do_index",
+    help="Fetch the release bank index __placeholder__.",
 )
 @click.option(
     "--dbg/--no-dbg",
     "do_dbg",
-    default=True,
-    help="Fetch the de Bruijn graph of each named species.",
+    help="Fetch the de Bruijn graph of each named species __placeholder__.",
 )
 @click.option(
     "--pangenome/--no-pangenome",
     "do_pangenome",
-    default=True,
-    help="Fetch the .h5 pangenome of each named species.",
+    help="Fetch the .h5 pangenome of each named species __placeholder__.",
 )
 @click.option("--force", "-f", is_flag=True, help="Re-download even if already cached.")
 @click.pass_context

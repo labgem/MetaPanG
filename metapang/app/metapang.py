@@ -87,7 +87,7 @@ click.rich_click.COMMAND_GROUPS = {
     "metapang cache": [
         {
             "name": "Commands",
-            "commands": ["list", "path", "fetch", "clear"],
+            "commands": ["list", "path", "add", "fetch", "clear"],
         },
     ],
 }
