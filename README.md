@@ -3,10 +3,11 @@
 [![CI](https://github.com/LABGeM/MetaPanG/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/ci.yml)
 [![Lint](https://github.com/LABGeM/MetaPanG/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/lint.yml)
 [![Typecheck](https://github.com/LABGeM/MetaPanG/actions/workflows/typecheck.yml/badge.svg?branch=main)](https://github.com/LABGeM/MetaPanG/actions/workflows/typecheck.yml)
+[![Docs](https://readthedocs.org/projects/metapang/badge/?version=latest)](https://metapang.readthedocs.io)
+[![License: CeCILL-C](https://img.shields.io/badge/license-CeCILL--C-blue.svg)](https://cecill.info/licences/Licence_CeCILL_V2.1-en.html)
+
 [![Version](https://img.shields.io/github/v/release/LABGeM/MetaPanG?label=version&sort=semver)](https://github.com/LABGeM/MetaPanG/releases)
 [![Container](https://img.shields.io/badge/ghcr.io-labgem%2Fmetapang-2496ED?logo=docker&logoColor=white)](https://github.com/LABGeM/MetaPanG/pkgs/container/metapang)
-[![License: CeCILL-C](https://img.shields.io/badge/license-CeCILL--C-blue.svg)](https://cecill.info/licences/Licence_CeCILL_V2.1-en.html)
-[![Docs](https://readthedocs.org/projects/metapang/badge/?version=latest)](https://metapang.readthedocs.io)
 
 > [!NOTE]
 > `MetaPanG` is under active development. Usage and results may change.
