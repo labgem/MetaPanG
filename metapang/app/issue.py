@@ -57,7 +57,7 @@ def _parse_toml(text: str) -> dict | None:
 
 
 def _hide_run_toml(data: dict) -> str:
-    """Hide private fields (query paths, sample name, output and metagraph path)."""
+    """Hide private fields (query paths, sample, output, refit dir, metagraph path)."""
     import msgspec
 
     data = dict(data)
@@ -65,6 +65,8 @@ def _hide_run_toml(data: dict) -> str:
         data["sample"] = "<sample>"
     if "output" in data:
         data["output"] = "<output>"
+    if "refit_from" in data:
+        data["refit_from"] = "<refit>"
     if isinstance(data.get("query"), list):
         data["query"] = ["<query file>"] * len(data["query"])
     if "metagraph_path" in data:
@@ -80,7 +82,11 @@ def _scrub(text: str, data: dict) -> str:
     query = data.get("query")
     if isinstance(query, list):
         pairs += [(q, "<query file>") for q in query if isinstance(q, str) and q]
-    for key, placeholder in (("sample", "<sample>"), ("output", "<output>")):
+    for key, placeholder in (
+        ("sample", "<sample>"),
+        ("output", "<output>"),
+        ("refit_from", "<refit>"),
+    ):
         value = data.get(key)
         if isinstance(value, str) and value:
             pairs.append((value, placeholder))

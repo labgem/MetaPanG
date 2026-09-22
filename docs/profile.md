@@ -95,6 +95,32 @@ full policy and how to override it are described in
 | `--impute-min-frac` | `0.5` | Dropout imputation threshold. A gene a strain should carry but with zero coverage is kept (status `imputed`) only if at least this fraction of its neighbouring genes in that strain are covered. |
 | `--reassign-max-residual` | `0.5` | Orphan-gene reassignment tolerance. An observed gene carried by none of the selected strains is attached to the strain subset `T` whose summed depth best matches the gene coverage `y`, and kept only when `|y - sum(depth of T)| / max(y, sum(depth of T))` is at most this value. Otherwise the gene is dropped. |
 | `--include-discarded` | off | Include species discarded by the compatibility policy (see [Collection compatibility](#collection-compatibility)). The bare flag includes all. `--include-discarded=s__A,s__B` includes only those, the rest stay excluded. |
+| `--refit` | | Re-run only strain resolution from a previous run's cached mapping (see [Reoptimizing an existing run](#reoptimizing-an-existing-run)). |
+
+## Reoptimizing an existing run
+
+Strain resolution is cheap and tunable. `--refit` re-runs
+**only** strain resolution, reusing a previous run, so
+you can try different [strain-selection](#strain-selection) and
+[advanced](#advanced) parameters without recomputing anything.
+
+```
+metapang profile --refit OLD -o NEW [options]
+```
+
+- `--refit OLD` names a completed run directory.
+- `QUERIES` / `-b/--pangbank` are not needed.
+- `-o NEW` is required
+
+```
+# full run once
+metapang profile reads.fastq.gz -b GTDB_refseq@2.0.0 -o base
+
+# sweep strain parameters, reusing base
+metapang profile --refit base -o base_k16 --k-max 16
+metapang profile --refit base -o base_cv  --stop-rule cv
+metapang profile --refit base -o base_min --cv-min-gain 0.01
+```
 
 ## Output
 

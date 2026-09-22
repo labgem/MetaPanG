@@ -449,6 +449,104 @@ def write_profile_outputs(
     return [strains_tsv, genes_tsv, selection_tsv, profile_json]
 
 
+def _load_reads(refit_dir: Path):
+    """Load a previous ProfileState read-only, or None if absent."""
+    state_file = refit_dir / "state.pkl"
+    if not state_file.exists():
+        return None
+    with open(state_file, "rb") as sf:
+        return pickle.load(sf)
+
+
+def profile_refit(
+    refit_dir: Path,
+    output_directory: Path,
+    config: StrainProfileConfig,
+    manifest_opts: dict,
+) -> None:
+    """Re-run only strain resolution from a previous cached run.
+
+    Reuses the per-species annotated graphs under `refit_dir/annotations` and writes
+    a fresh, standard profile output to `output_directory`, without touching
+    `refit_dir`.
+    """
+    import msgspec
+
+    anno_dir = refit_dir / "annotations"
+    graphs = sorted(anno_dir.glob("*.profile.gt")) if anno_dir.exists() else []
+    if not graphs:
+        raise click.UsageError(
+            f"no annotated graphs found under '{anno_dir}'; "
+            "--refit needs a completed profile run"
+        )
+
+    old_manifest: dict = {}
+    old_run = refit_dir / "run.toml"
+    if old_run.exists():
+        old_manifest = msgspec.toml.decode(old_run.read_bytes())
+    sample_name = old_manifest.get("sample", refit_dir.name)
+    collection = old_manifest.get("collection", "unknown")
+
+    output_directory.mkdir(parents=True, exist_ok=True)
+    metapang_add_log_file(output_directory / "logs.txt")
+    write_run_manifest(
+        output_directory,
+        {
+            "sample": sample_name,
+            "collection": collection,
+            "refit_from": str(refit_dir),
+            "output": str(output_directory),
+            **manifest_opts,
+        },
+    )
+
+    old_state = _load_reads(refit_dir)
+
+    mp_log.info(f"MetaPanG profile (refit) - sample '{sample_name}' from '{refit_dir}'")
+
+    with timer() as gtime:
+        n = len(graphs)
+        results: list[tuple[str, StrainProfile, int, int]] = []
+        for i, graph in enumerate(graphs, 1):
+            candidate = graph.name.removesuffix(".profile.gt")
+            mp_log.info(f"[{i}/{n}] Refitting species '{candidate}'")
+            with timer() as ctime, log_indent():
+                pwg = PWGraph(graph)
+                with timer() as fit_time:
+                    mp_log.info(f"⏳ Fitting strain mixture for '{candidate}'")
+                    profile = profile_strains(pwg, config=config)
+                mp_log.info(
+                    f"✅ Fitting strain mixture for '{candidate}' - "
+                    f"step: {fit_time.format()}, total: {gtime.format()}"
+                )
+                reads_mapped, reads_total = (
+                    old_state.reads(candidate) if old_state else (0, 0)
+                )
+                mp_log.info(
+                    f"Species '{candidate}': k={profile.k}, "
+                    f"residual={profile.residual:.4f}"
+                )
+                log_strain_profile(candidate, profile)
+                written = write_profile_outputs(
+                    candidate, profile, output_directory, reads_mapped, reads_total
+                )
+                for path in written:
+                    mp_log.info(f"Wrote {path}")
+                results.append((candidate, profile, reads_mapped, reads_total))
+            mp_log.debug(f"[{i}/{n}] '{candidate}' completed - step: {ctime.format()}")
+
+        if results:
+            report = write_profile_report(
+                output_directory, sample_name, collection, results
+            )
+            mp_log.info(f"Wrote {report}")
+
+    mp_log.info(
+        f"✅ Refit complete - {n} species - total: {gtime.format()}, "
+        f"peak memory: {_peak_rss_str()}"
+    )
+
+
 @click.command()
 @click.argument(
     "query_args",
@@ -632,6 +730,15 @@ def write_profile_outputs(
         "--include-discarded=s__A,s__B includes only those."
     ),
 )
+@click.option(
+    "--refit",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Re-run strain resolution (the optimization step) using a previous cached"
+        "run in this directory. It writes a fresh run to -o. QUERIES and -b are not needed."
+    ),
+)
 @click.pass_context
 def profile(
     ctx,
@@ -650,6 +757,7 @@ def profile(
     impute_min_neighbour_frac,
     reassign_max_rel_residual,
     include_discarded,
+    refit,
 ) -> None:
     """
     [bold]Strain-level metagenomic profiling against a pangenome collection[/]
@@ -666,6 +774,37 @@ def profile(
       <species>.selection.tsv   the greedy selection trace and cross-validation errors
       report.html
     """
+    config = StrainProfileConfig(
+        merge_jaccard=merge_jaccard,
+        k_max=k_max,
+        stop_rule=stop_rule,
+        cv_folds=cv_folds,
+        cv_min_rel_reduction=cv_min_rel_reduction,
+        refine_ra=refine_ra,
+        impute_min_neighbour_frac=impute_min_neighbour_frac,
+        reassign_max_rel_residual=reassign_max_rel_residual,
+    )
+
+    if refit is not None:
+        if "{" in output:
+            raise click.UsageError("--refit requires an explicit -o/--output directory")
+        profile_refit(
+            Path(refit),
+            Path(output),
+            config,
+            {
+                "stop_rule": stop_rule,
+                "k_max": k_max,
+                "merge_jaccard": merge_jaccard,
+                "cv_folds": cv_folds,
+                "cv_min_rel_reduction": cv_min_rel_reduction,
+                "refine_ra": refine_ra,
+                "impute_min_neighbour_frac": impute_min_neighbour_frac,
+                "reassign_max_rel_residual": reassign_max_rel_residual,
+            },
+        )
+        return
+
     pangbank_cache = PanGBank_Cache(ctx.obj.get("config").pangbank)
     collection, collection_version, pangenome = parse_collection_name_version(pangbank)
 
@@ -744,17 +883,6 @@ def profile(
     )
 
     state = ProfileState.load(output_directory / "state.pkl")
-
-    config = StrainProfileConfig(
-        merge_jaccard=merge_jaccard,
-        k_max=k_max,
-        stop_rule=stop_rule,
-        cv_folds=cv_folds,
-        cv_min_rel_reduction=cv_min_rel_reduction,
-        refine_ra=refine_ra,
-        impute_min_neighbour_frac=impute_min_neighbour_frac,
-        reassign_max_rel_residual=reassign_max_rel_residual,
-    )
 
     mp_log.info(
         f"MetaPanG profile - sample '{sample_name}' vs collection '{collection}'"
