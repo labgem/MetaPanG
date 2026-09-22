@@ -178,6 +178,27 @@ class metapang_tools_c(Struct):
     pg_dump: pg_dump_c = field(default_factory=pg_dump_c)
 
 
+class metapang_cache_c(Struct):
+    """Configuration for the cache command group."""
+
+    class add_c(Struct):
+        """Configuration for the cache add subcommand."""
+
+        kmer_size: int = field(default=25)
+        threads: int = field(default=1)
+        metagraph_path: str = field(default="metagraph")
+
+    class fetch_c(Struct):
+        """Configuration for the cache fetch subcommand."""
+
+        do_index: bool = field(default=True)
+        do_dbg: bool = field(default=True)
+        do_pangenome: bool = field(default=True)
+
+    add: add_c = field(default_factory=add_c)
+    fetch: fetch_c = field(default_factory=fetch_c)
+
+
 class metapang_commands_c(Struct):
     """Configuration aggregating all MetaPanG command settings."""
 
@@ -186,6 +207,7 @@ class metapang_commands_c(Struct):
     index: metapang_index_c = field(default_factory=metapang_index_c)
     search: metapang_search_c = field(default_factory=metapang_search_c)
     profile: metapang_profile_c = field(default_factory=metapang_profile_c)
+    cache: metapang_cache_c = field(default_factory=metapang_cache_c)
 
 
 class MetaPanG_Config(Struct):
