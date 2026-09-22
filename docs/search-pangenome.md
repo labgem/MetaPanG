@@ -12,23 +12,25 @@ matches.
 ## Synopsis
 
 ```
-metapang search pangenome -q query.fasta.gz -p GTDB_refseq@2.0.0:s__Abiotrophia_defectiva [OPTIONS]
-metapang search pangenome -q query.fasta.gz -g pangenome.dbg -a pangenome.annodbg      [OPTIONS]
+metapang search pangenome -q query.fasta.gz -b GTDB_refseq@2.0.0:s__Abiotrophia_defectiva [OPTIONS]
+metapang search pangenome -q query.fasta.gz -b local:my_pangenome                          [OPTIONS]
+metapang search pangenome -q query.fasta.gz -g pangenome.dbg -a pangenome.annodbg          [OPTIONS]
 ```
 
 ## Inputs
 
-The query is required, and the pangenome is given in exactly one of two ways: from
-`PanGBank`, or as a local de Bruijn graph plus its annotations.
+The query is required, and the pangenome is given in one of three ways: from
+`PanGBank`, a local pangenome built with `metapang cache add`, or an explicit local
+de Bruijn graph plus its annotations.
 
 `-q`, `--query` (required)
 : The query file (fasta/fastq, gzipped accepted), a genome or reads.
 
-`-p`, `--pangbank`
-: Use a pangenome from `PanGBank`, as `collection[@version]:name`, for example
-  `GTDB_refseq:s__Abiotrophia_defectiva` or
-  `GTDB_refseq@v1.0.0:s__Abiotrophia_defectiva`. The graph is downloaded and cached
-  on first use.
+`-b`, `--pangbank`
+: Use a pangenome from `PanGBank`, as `collection[@version]:name` (for example
+  `GTDB_refseq@2.0.0:s__Abiotrophia_defectiva`, downloaded and cached on first use),
+  or a local pangenome as `local:<name>` built with `metapang cache add` (see
+  [Local pangenomes](data.md#local-pangenomes)).
 
 `-g`, `--dbg`
 : A local pangenome de Bruijn graph (the `.dbg` file).
@@ -37,8 +39,9 @@ The query is required, and the pangenome is given in exactly one of two ways: fr
 : The annotations for that graph (the `.annodbg` file).
 
 :::{note}
-Give either `--pangbank`, or both `--dbg` and `--annotations`. The `--dbg` /
-`--annotations` pair is the per-pangenome output of `metapang index bank`.
+Give either `--pangbank` (a `PanGBank` or `local:` pangenome), or both `--dbg` and
+`--annotations`. The `--dbg` / `--annotations` pair is the per-pangenome output of
+`metapang index bank`.
 :::
 
 ## Options
@@ -64,10 +67,9 @@ with its read and k-mer counts, then saved to the given path. This is the same
 annotated graph `metapang profile` builds internally.
 
 :::{note}
-`--annotate` requires `--pangbank`, because it needs the prebuilt `.gt` graph
-downloaded from `PanGBank` (the local `--dbg` / `--annotations` inputs do not include
-it). It also needs the query results in a file, so it cannot be combined with
-`--output stdout`.
+`--annotate` requires `--pangbank` (a `PanGBank` or `local:` pangenome)
+It also needs the query results in a file, so it cannot be combined with
+dout`.
 :::
 
 ## Examples
@@ -75,9 +77,12 @@ it). It also needs the query results in a file, so it cannot be combined with
 ```
 # search a genome against one PanGBank pangenome
 metapang search pangenome -q genome.fasta.gz \
-  -p GTDB_refseq@2.0.0:s__Abiotrophia_defectiva -t 8
+  -b GTDB_refseq@2.0.0:s__Abiotrophia_defectiva -t 8
 
-# search a locally indexed pangenome and print to stdout
+# search against a local pangenome (built with 'metapang cache add')
+metapang search pangenome -q genome.fasta.gz -b local:my_pangenome -o -
+
+# search an explicit dbg / annotations pair and print to stdout
 metapang search pangenome -q genome.fasta.gz \
   -g s__Abiotrophia_defectiva.dbg -a s__Abiotrophia_defectiva.annodbg -o -
 ```

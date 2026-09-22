@@ -48,12 +48,15 @@ full policy and how to override it are described in
   `*.fastq.gz`. Stem of the first file is used as the sample name.
 
 `-b`, `--pangbank` (default `GTDB_refseq`)
-: The collection to profile against, as `collection[@version][:pangenomes]`.
+: The collection to profile against, as `collection[@version][:pangenomes]`, or a
+  local pangenome as `local:<name>` (see
+  [Local pangenomes](data.md#local-pangenomes)).
 
   - `version` is optional and defaults to `latest`.
   - `pangenomes` is optional: a comma-separated list, each item either a species
     name or a numeric `PanGBank` id. Give one or more to profile exactly those and
     skip species detection. Omit it to profile every detected species.
+  - `local:<name>` profiles against a pangenome built with `metapang cache add`.
 
   ```
   # detect and profile every species found in the sample
