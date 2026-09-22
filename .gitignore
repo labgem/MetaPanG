@@ -176,6 +176,6 @@ cython_debug/
 .kanbn/
 .metapang-cache/
 .metapang-config.*
-
+.pixi
 # Build artifacts (container/image builds)
 *.sif
