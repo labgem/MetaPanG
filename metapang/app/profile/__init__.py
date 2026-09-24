@@ -11,7 +11,11 @@ from sourmash import load_one_signature
 from sourmash.save_load import SaveSignaturesToLocation
 
 from metapang.core.graph import PWGraph, PWGraphAnnotator
-from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
+from metapang.core.index.dbg import (
+    MetagraphCLI,
+    MetagraphQueryOptions,
+    ensure_metagraph,
+)
 from metapang.core.index.search import IndexBuilder, IndexSearch, IndexType
 from metapang.core.profile.strains import (
     StrainProfile,
@@ -814,6 +818,8 @@ def profile(
             },
         )
         return
+
+    ensure_metagraph(metagraph_path)
 
     collection, collection_version, pangenome = parse_collection_name_version(pangbank)
 
