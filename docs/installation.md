@@ -1,7 +1,6 @@
 # Installation
 
-`MetaPanG` is supported on Linux x86_64, macOS x86_64, and macOS arm64. Linux
-arm64 (aarch64) is not supported at the moment.
+`MetaPanG` is supported on Linux x86_64/aarch64 and macOS x86_64/arm64.
 
 ## 1. With `pixi global` (recommended)
 
