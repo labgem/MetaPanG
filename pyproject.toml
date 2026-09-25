@@ -29,7 +29,6 @@ dependencies = [
     "rich>=13.9.4",
     "rich-click>=1.8.6",
     "semver>=3.0.4",
-    "sourmash>=4.9.4",
     "tables>=3.10.1",
     "msgspec>=0.19.0",
     "tomli-w>=1.2.0",

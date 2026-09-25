@@ -7,5 +7,6 @@ dependencies:
   - pip
   - graph-tool
   - ppanggolin >=2.3.1
+  - sourmash >=4.9.4
   - pip:
       - -e .
