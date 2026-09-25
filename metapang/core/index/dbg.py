@@ -4,7 +4,7 @@ from typing import Literal
 
 import msgspec
 
-from metapang.exceptions import MetaPanG_ConfigError
+from metapang.exceptions import MetaPanG_ConfigError, MetaPanG_MissingTool
 from metapang.logger import mp_log
 from metapang.utils.execution import (
     CLIExecutor,
@@ -14,6 +14,17 @@ from metapang.utils.execution import (
 )
 from metapang.utils.io import smart_io
 from metapang.utils.time import timer
+
+
+def ensure_metagraph(executable: str = "metagraph") -> str:
+    try:
+        return find_executable(executable)
+    except MetaPanG_MissingTool as e:
+        raise MetaPanG_MissingTool(
+            f"metagraph binary '{executable}' not found on PATH. Install metagraph "
+            "or pass --metagraph-path. "
+            "See https://metapang.readthedocs.io/en/latest/installation.html"
+        ) from e
 
 
 @cli_dataclass

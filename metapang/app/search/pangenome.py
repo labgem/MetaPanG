@@ -4,7 +4,11 @@ from pathlib import Path
 import rich_click as click
 
 from metapang.core.graph import PWGraph, PWGraphAnnotator
-from metapang.core.index.dbg import MetagraphCLI, MetagraphQueryOptions
+from metapang.core.index.dbg import (
+    MetagraphCLI,
+    MetagraphQueryOptions,
+    ensure_metagraph,
+)
 from metapang.logger import mp_log
 from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
 from metapang.pg.local import LOCAL_COLLECTION, LocalCacheProxy, is_built, local_dir
@@ -106,6 +110,8 @@ def pangenome(
             )
 
         config = ctx.obj.get("config")
+
+        ensure_metagraph(metagraph_path)
 
         if pangbank:
             collection, collection_version, pangenome_name = (
