@@ -30,7 +30,7 @@ covers usage, managing pangenome data, configuration, and the output format.
 
 ## Installation
 
-`MetaPanG` is supported on Linux x86_64, macOS x86_64/arm64. Linux arm64 is not supported at the moment.
+`MetaPanG` is supported on Linux x86_64/aarch64 and macOS x86_64/arm64.
 
 ### 1. With `pixi global` (recommended)
 
