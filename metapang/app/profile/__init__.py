@@ -684,7 +684,7 @@ def profile_refit(
 )
 @click.option(
     "--cv-min-gain",
-    "cv_min_rel_reduction",
+    "cv_min_gain",
     type=float,
     help="""
         \b
@@ -706,7 +706,7 @@ def profile_refit(
 )
 @click.option(
     "--impute-min-frac",
-    "impute_min_neighbour_frac",
+    "impute_min_frac",
     type=float,
     help="""
         \b
@@ -719,7 +719,7 @@ def profile_refit(
 )
 @click.option(
     "--reassign-max-residual",
-    "reassign_max_rel_residual",
+    "reassign_max_residual",
     type=float,
     help="""
         \b
@@ -766,10 +766,10 @@ def profile(
     k_max,
     merge_jaccard,
     cv_folds,
-    cv_min_rel_reduction,
+    cv_min_gain,
     refine_ra,
-    impute_min_neighbour_frac,
-    reassign_max_rel_residual,
+    impute_min_frac,
+    reassign_max_residual,
     include_discarded,
     refit,
 ) -> None:
@@ -793,10 +793,10 @@ def profile(
         k_max=k_max,
         stop_rule=stop_rule,
         cv_folds=cv_folds,
-        cv_min_rel_reduction=cv_min_rel_reduction,
+        cv_min_rel_reduction=cv_min_gain,
         refine_ra=refine_ra,
-        impute_min_neighbour_frac=impute_min_neighbour_frac,
-        reassign_max_rel_residual=reassign_max_rel_residual,
+        impute_min_neighbour_frac=impute_min_frac,
+        reassign_max_rel_residual=reassign_max_residual,
     )
 
     if refit is not None:
@@ -811,10 +811,10 @@ def profile(
                 "k_max": k_max,
                 "merge_jaccard": merge_jaccard,
                 "cv_folds": cv_folds,
-                "cv_min_rel_reduction": cv_min_rel_reduction,
+                "cv_min_rel_reduction": cv_min_gain,
                 "refine_ra": refine_ra,
-                "impute_min_neighbour_frac": impute_min_neighbour_frac,
-                "reassign_max_rel_residual": reassign_max_rel_residual,
+                "impute_min_neighbour_frac": impute_min_frac,
+                "reassign_max_rel_residual": reassign_max_residual,
             },
         )
         return
@@ -907,10 +907,10 @@ def profile(
             "k_max": k_max,
             "merge_jaccard": merge_jaccard,
             "cv_folds": cv_folds,
-            "cv_min_rel_reduction": cv_min_rel_reduction,
+            "cv_min_gain": cv_min_gain,
             "refine_ra": refine_ra,
-            "impute_min_neighbour_frac": impute_min_neighbour_frac,
-            "reassign_max_rel_residual": reassign_max_rel_residual,
+            "impute_min_frac": impute_min_frac,
+            "reassign_max_residual": reassign_max_residual,
         },
     )
 

@@ -28,12 +28,20 @@ from metapang.pg.api import PanGBank_Cache, parse_collection_name_version
     type=str,
     help="Use an index from PanGBank (e.g. GTDB_refseq, GTDB_refseq@v1.0.0, GTDB_refseq@latest)",
 )
+@click.argument(
+    "query_args",
+    nargs=-1,
+    type=click.Path(exists=True, readable=True, path_type=Path),
+    metavar="QUERIES...",
+)
 @click.option(
     "--query",
     "-q",
+    "query",
+    multiple=True,
     type=click.Path(exists=True, readable=True, path_type=Path),
-    required=True,
-    help="The query file, in fasta/q format, possibly gzipped",
+    hidden=True,
+    help="Deprecated: pass query files as positional arguments instead.",
 )
 @click.option(
     "--threshold-pangenome",
@@ -74,6 +82,7 @@ def bank(
     ctx,
     index,
     pangbank,
+    query_args,
     query,
     threshold_pangenome,
     threshold_genome,
@@ -86,8 +95,8 @@ def bank(
     [bold]Search a bank[/]
 
     \b
-    [bold][u]INPUT[/u]:
-    [u]QUERY[/u]:
+    [bold][u]INPUT[/u]: a MetaPanG bank index (--index) or a PanGBank collection (--pangbank)
+    [u]QUERY[/u]: one or more sequence files (fasta/q, gzipped ok)
     \b
     It outputs a TSV file with the following columns:
         - [i]query_name[/]: name of the query
@@ -104,6 +113,14 @@ def bank(
     else:
         if not index:
             raise click.UsageError("You must provide either --pangbank OR --index")
+
+    queries = list(query_args) + list(query)
+    if not queries:
+        raise click.UsageError(
+            "provide at least one query file, e.g. "
+            "'metapang search bank reads.fastq.gz -p GTDB_refseq'"
+        )
+    sample_name = queries[0].stem
 
     config = ctx.obj.get("config")
 
@@ -125,14 +142,12 @@ def bank(
     else:
         index = Path(index)
 
-    query = Path(query)
-
     mp_log.info(f"Load index from '{index}'")
     search = IndexSearch(index, to_load=IndexType.all)
-    mp_log.info(f"Searching for '{query.stem}'")
+    mp_log.info(f"Searching for '{sample_name}' ({len(queries)} file(s))")
 
     signature = IndexBuilder.file_batch_signature(
-        query,
+        queries,
         search.info.kmer_size,
         search.info.scaled,
         search.info.n,
@@ -151,9 +166,7 @@ def bank(
         df = pd.DataFrame(rows, columns=["name", "f_query", "f_match"])  # type: ignore[arg-type]
         if not df.empty:
             df["cum_f_query"] = df["f_query"].cumsum().round(4)
-        out_path = (
-            f"{output.format(query_file=str(query), index_type='gather_genome')}.tsv"
-        )
+        out_path = f"{output.format(query_file=str(queries[0]), index_type='gather_genome')}.tsv"
         df.to_csv(out_path, sep="\t", index=False)
         mp_log.info(f"Gather selected {len(df)} references, writing to '{out_path}'")
         show_df_in_rich(df, title="Gather (min-set-cover) on genome index")
@@ -169,8 +182,8 @@ def bank(
     pang_df = SearchResult.to_dataframe(pang_results)
     geno_df = SearchResult.to_dataframe(geno_results)
 
-    pang_output = f"{output.format(query_file=str(query), index_type=IndexType.pangenome.name)}_pangenome.tsv"
-    geno_output = f"{output.format(query_file=str(query), index_type=IndexType.genome.name)}_genome.tsv"
+    pang_output = f"{output.format(query_file=str(queries[0]), index_type=IndexType.pangenome.name)}_pangenome.tsv"
+    geno_output = f"{output.format(query_file=str(queries[0]), index_type=IndexType.genome.name)}_genome.tsv"
 
     mp_log.info(
         f"Found {len(pang_results)} matches in pangenome index, writing to '{pang_output}'"

@@ -38,12 +38,20 @@ from metapang.utils.time import timer
         e.g. GTDB_refseq@2.0.0:s__Abiotrophia_defectiva, local:my_pangenome
     """,
 )
+@click.argument(
+    "query_args",
+    nargs=-1,
+    type=click.Path(exists=True, readable=True, path_type=Path),
+    metavar="QUERIES...",
+)
 @click.option(
     "--query",
     "-q",
+    "query",
+    multiple=True,
     type=click.Path(exists=True, readable=True, path_type=Path),
-    required=True,
-    help="The query file, in fasta/q format, possibly gzipped",
+    hidden=True,
+    help="Deprecated: pass query files as positional arguments instead.",
 )
 @click.option(
     "--threads",
@@ -71,14 +79,23 @@ from metapang.utils.time import timer
 )
 @click.pass_context
 def pangenome(
-    ctx, dbg, annotations, pangbank, query, threads, metagraph_path, output, annotate
+    ctx,
+    dbg,
+    annotations,
+    pangbank,
+    query_args,
+    query,
+    threads,
+    metagraph_path,
+    output,
+    annotate,
 ) -> None:
     """
     [bold]Search a in a MetaPanG pangenome index[/bold]
 
     \b
     [bold][u]INPUT[/u]: The pangenome dbg directory (i.e. the output of 'metapang index bank')
-    [u]QUERY[/u]: The query genome, in fasta format, possibly gzipped
+    [u]QUERY[/u]: one or more sequence files (fasta/q, gzipped ok)
     \b
     It outputs a TSV file with the following columns:
     - query_name: name of the query
@@ -110,6 +127,14 @@ def pangenome(
             )
 
         config = ctx.obj.get("config")
+
+        queries = list(query_args) + list(query)
+        if not queries:
+            raise click.UsageError(
+                "provide at least one query file, e.g. "
+                "'metapang search pangenome reads.fastq.gz -b GTDB_refseq@2.0.0:s__...'"
+            )
+        sample_name = queries[0].stem
 
         ensure_metagraph(metagraph_path)
 
@@ -187,19 +212,22 @@ def pangenome(
 
         if output not in ("stdout", "-"):
             output = output.format(
-                pangenome_name=dbg_file.stem, query_file_name=query.stem
+                pangenome_name=dbg_file.stem, query_file_name=sample_name
             )
 
         query_opt = MetagraphQueryOptions(
             i=dbg_file,
             a=annotations_file,
-            query_file=query,
+            query_file=queries,
             output_file=output,
             parallel=threads,
             query_mode="matches",
         )
 
-        mp_log.info(f"Searching for '{query.stem}' in pangenome dbg '{dbg_file.name}'")
+        mp_log.info(
+            f"Searching for '{sample_name}' ({len(queries)} file(s)) in "
+            f"pangenome dbg '{dbg_file.name}'"
+        )
 
         mcli.query(query_opt)
 
