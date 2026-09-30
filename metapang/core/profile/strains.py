@@ -27,10 +27,10 @@ class StrainProfileConfig:
     k_max: int = _PD.k_max
     stop_rule: str = _PD.stop_rule
     cv_folds: int = _PD.cv_folds
-    cv_min_rel_reduction: float = _PD.cv_min_rel_reduction
+    cv_min_rel_reduction: float = _PD.cv_min_gain
     refine_ra: bool = _PD.refine_ra
-    impute_min_neighbour_frac: float = _PD.impute_min_neighbour_frac
-    reassign_max_rel_residual: float = _PD.reassign_max_rel_residual
+    impute_min_neighbour_frac: float = _PD.impute_min_frac
+    reassign_max_rel_residual: float = _PD.reassign_max_residual
     tie_rel: float = 0.01
 
 

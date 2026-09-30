@@ -71,7 +71,7 @@ class metapang_search_c(Struct):
 
         mode: str = field(default="containment")
         threshold_pangenome: float = field(default=0.05)
-        threshold_genome: float = field(default=0.5)
+        threshold_genome: float = field(default=0.01)
         threads: int = field(default=1)
 
     pangenome: pangenome_c = field(default_factory=pangenome_c)
@@ -94,11 +94,11 @@ class metapang_profile_c(Struct):
     k_max: int = field(default=12)
     stop_rule: str = field(default="cv_paired")
     cv_folds: int = field(default=5)
-    cv_min_rel_reduction: float = field(default=0.02)
+    cv_min_gain: float = field(default=0.02)
     # per-strain gene-content reconciliation
     refine_ra: bool = field(default=True)
-    impute_min_neighbour_frac: float = field(default=0.5)
-    reassign_max_rel_residual: float = field(default=0.5)
+    impute_min_frac: float = field(default=0.5)
+    reassign_max_residual: float = field(default=0.5)
 
 
 class metapang_index_c(Struct):
