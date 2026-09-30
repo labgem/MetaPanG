@@ -15,10 +15,20 @@ SUPPORTED: dict[str, set[str]] = {
 # "collection@version" -> {species: reason} discarded by default (overridable).
 DISCARDED: dict[str, dict[str, str]] = {
     "GTDB_refseq@2.0.0": {
-        # Those pangenomes are probably E. coli.
-        # They exist because of low quality representative
-        "s__ECMA0423_sp047199055": "Low quality representative",
-        "s__G047199095_sp047199095": "Low quality representative",
+        "s__ECMA0423_sp047199055": "Low quality representative (<85% completeness), likely E. coli",
+        "s__G047199095_sp047199095": "Low quality representative (<85% completeness), likely E. coli",
+        "s__Ferrimicrobium_sp027409005": "Low quality representative (<85% completeness)",
+        "s__Lactobacillus_apis_A": "Low quality representative (<85% completeness)",
+        "s__Lactobacillus_sp945980025": "Low quality representative (<85% completeness), likely L. johnsonii",
+        "s__Streptococcus_oralis_K": "Low quality representative (<85% completeness)",
+        "s__Bacteroides_caecimuris_A": "Low quality representative (<85% completeness)",
+        "s__Bacteroides_sp900755095": "Low quality representative (<85% completeness), likely B. ovatus",
+        "s__Bacteroides_sp947646015": "Low quality representative (<85% completeness), likely B. thetaiotaomicron",
+        "s__Bacteroides_stercoris_A": "Low quality representative (<85% completeness)",
+        "s__Prevotella_copri_U": "Low quality representative (<85% completeness)",
+        "s__Thiolapillus_brandeum_A": "Low quality representative (<85% completeness)",
+        "s__Enterobacter_flexneri_A": "Low quality representative (<85% completeness)",
+        "s__Stutzerimonas_xanthomarina_A": "Low quality representative (<85% completeness)",
     }
 }
 
