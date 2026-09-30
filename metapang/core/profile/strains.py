@@ -174,20 +174,21 @@ def collapse_columns(
 
 
 def kstar_one_se(fold_errors: list[list[float]]) -> int:
-    """Pick the fewest strains whose CV error is within one SE of the minimum.
-
-    NNLS zeros spurious strains, so the CV curve drops to the true k then plateaus
-    (never rises). A plain argmin chases noise to k_max, the 1-SE rule stops at the elbow.
+    """Sequential 1-SE stop: add a strain only while it lowers held-out error by
+    more than one standard error, and stop at the first increment that does not.
     """
     means = [float(np.mean(e)) for e in fold_errors]
-    kbest = int(np.argmin(means))
-    errs = fold_errors[kbest]
-    se = float(np.std(errs) / math.sqrt(len(errs))) if len(errs) > 1 else 0.0
-    thresh = means[kbest] + se
-    for k in range(len(means)):
-        if means[k] <= thresh:
-            return k
-    return kbest
+    kstar = 0
+    for k in range(len(fold_errors) - 1):
+        cur = fold_errors[k]
+        if len(cur) < 2:
+            break
+        se = float(np.std(cur) / math.sqrt(len(cur)))
+        if means[k] - means[k + 1] > se:
+            kstar = k + 1
+        else:
+            break
+    return kstar
 
 
 def kstar_paired(fold_errors: list[list[float]], min_rel_reduction: float = 0.0) -> int:
@@ -416,6 +417,24 @@ class GreedyStrainSelector:
         reduced, groups = collapse_columns(mix, cfg.merge_jaccard)
         if not np.any(reduced.y > 0) or reduced.n_strains == 0:
             return Selection.empty()
+
+        # Drop extreme-coverage families before the fit
+        pos = reduced.y[reduced.y > 0]
+        med = float(np.median(pos))
+        mad = float(np.median(np.abs(pos - med)))
+
+        fence = med + 8.0 * 1.4826 * mad if mad > 0 else 20.0 * med
+        keep = reduced.y <= fence
+        if not bool(keep.all()):
+            fl = reduced.family_labels
+            reduced = Mixture(
+                m=reduced.m[keep],
+                y=reduced.y[keep],
+                strain_labels=reduced.strain_labels,
+                family_labels=[f for f, k in zip(fl, keep, strict=True) if k]
+                if fl
+                else None,
+            )
         return self._select_cv(reduced, groups, pwg)
 
 
@@ -588,12 +607,25 @@ def refine_abundances(selection: Selection, components: list[GeneSet]) -> Select
             M[i, cid] = 1.0
 
     x, _ = nnls(M, y)
+
+    # Drop strains the refit zeroed out
+    keep = [i for i in range(n) if x[i] > 1e-9]
+    if not keep:
+        return Selection.empty()
+    if len(keep) < n:
+        x, _ = nnls(M[:, keep], y)
+        indices = [selection.indices[i] for i in keep]
+        labels = [selection.labels[i] for i in keep]
+    else:
+        indices = selection.indices
+        labels = selection.labels
+
     total = float(np.sum(x))
     ra = x / total if total > 0 else x
 
     return Selection(
-        indices=selection.indices,
-        labels=selection.labels,
+        indices=indices,
+        labels=labels,
         x=x,
         ra=ra,
         residual=selection.residual,
