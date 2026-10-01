@@ -255,6 +255,18 @@ def phase1(
             candidates.append(species)
             mp_log.trace(f"  candidate species '{species}' (from genome '{name}')")
 
+    detection_file = output_directory / f"{sample_name}.detection.tsv"
+    with open(detection_file, "w") as det:
+        det.write("genome\tspecies\tf_query\tf_match\tcum_f_query\n")
+        cum = 0.0
+        for name, f_query, f_match in gather_results:
+            cum += float(f_query)
+            det.write(
+                f"{name}\t{name.split('@')[0]}\t"
+                f"{float(f_query):.6f}\t{float(f_match):.6f}\t{cum:.6f}\n"
+            )
+    mp_log.info(f"Wrote species detection scores to '{detection_file.name}'")
+
     if candidates:
         mp_log.info(f"{len(candidates)} candidate species: {', '.join(candidates)}")
     else:
