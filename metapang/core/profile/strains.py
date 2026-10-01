@@ -249,6 +249,16 @@ def _nnls_via_gram(
     return x, max(rss, 0.0)
 
 
+def _poisson_deviance(y: NDArray[np.float64], mu: NDArray[np.float64]) -> float:
+    """Poisson deviance"""
+    y = np.asarray(y, dtype=float)
+    mu = np.asarray(mu, dtype=float)
+    term = np.zeros_like(y)
+    pos = y > 0
+    term[pos] = y[pos] * np.log(y[pos] / mu[pos])
+    return float(2.0 * np.sum(term - (y - mu)))
+
+
 class GreedyStrainSelector:
     """Selects strains by greedy forward NNLS with cross-validated stopping."""
 
@@ -266,6 +276,10 @@ class GreedyStrainSelector:
         self._fold: list[
             tuple[NDArray[np.float64], NDArray[np.float64], float, int]
         ] = []
+        self._M: NDArray[np.float64] = np.zeros((0, 0))
+        self._y: NDArray[np.float64] = np.zeros(0)
+        self._fold_id: NDArray[np.int_] = np.zeros(0, dtype=int)
+        self._b0: float = 1e-6
 
     def _solve_subset(self, M, y, cols, labels):
         return _nnls_via_gram(self._G, self._b, self._yty, cols)
@@ -284,20 +298,27 @@ class GreedyStrainSelector:
         return tied[0]
 
     def _cv_fold_errors(self, cols, n_folds: int) -> list[float]:
-        """Per-fold cross-validated MSE for the model using `cols`: fit on training folds, predict the held-out fold."""
+        """Per-fold cross-validated Poisson deviance for the model using `cols`: fit
+        on the training folds, then score the held-out fold with
+        the count-appropriate loss.
+        """
         cols = list(cols)
         errs: list[float] = []
         for f in range(n_folds):
             Gf, bf, ytf, cnt = self._fold[f]
             if cnt == 0 or cnt == self._n_fam:
                 continue
+            rows = self._fold_id == f
+            yf = self._y[rows]
             if not cols:
-                errs.append(ytf / cnt)
-                continue
-            xx, _ = _nnls_via_gram(self._G - Gf, self._b - bf, self._yty - ytf, cols)
-            Gfc = Gf[np.ix_(cols, cols)]
-            test_rss = float(xx @ Gfc @ xx - 2.0 * xx @ bf[cols] + ytf)
-            errs.append(max(test_rss, 0.0) / cnt)
+                mu = np.zeros(yf.shape[0])
+            else:
+                xx, _ = _nnls_via_gram(
+                    self._G - Gf, self._b - bf, self._yty - ytf, cols
+                )
+                mu = self._M[np.ix_(rows, cols)] @ xx
+            dev = _poisson_deviance(yf, mu + self._b0)
+            errs.append(dev / cnt)
         return errs
 
     def _finalize(self, reduced, sel_cols, groups, trace) -> Selection:
@@ -375,9 +396,17 @@ class GreedyStrainSelector:
         self._yty = float(y @ y)
         self._n_fam = n_fam
 
+        # kept so the CV scorer can materialise per-family held-out predictions for
+        # the Poisson deviance
+        self._M = M
+        self._y = y
+        pos = y[y > 0]
+        self._b0 = 1e-2 * float(np.median(pos)) if pos.size else 1e-6
+
         # Per-fold Gram pieces (same fixed partition/seed as before) so CV folds
         # reuse the precomputed Gram: G_train = G - G_fold, etc.
         fold = np.random.default_rng(0).integers(0, cfg.cv_folds, size=n_fam)
+        self._fold_id = fold
         self._fold = []
         for f in range(cfg.cv_folds):
             rows = fold == f
@@ -418,12 +447,11 @@ class GreedyStrainSelector:
         if not np.any(reduced.y > 0) or reduced.n_strains == 0:
             return Selection.empty()
 
-        # Drop extreme-coverage families before the fit
+        # Drop extreme-coverage families before the fit, using a Tukey fence
         pos = reduced.y[reduced.y > 0]
-        med = float(np.median(pos))
-        mad = float(np.median(np.abs(pos - med)))
-
-        fence = med + 8.0 * 1.4826 * mad if mad > 0 else 20.0 * med
+        q1, med, q3 = (float(v) for v in np.percentile(pos, [25, 50, 75]))
+        iqr = q3 - q1
+        fence = q3 + 3.0 * iqr if iqr > 0 else 20.0 * med
         keep = reduced.y <= fence
         if not bool(keep.all()):
             fl = reduced.family_labels
