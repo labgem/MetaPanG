@@ -1,6 +1,7 @@
 import json
 import os
 import signal
+import threading
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
@@ -246,27 +247,38 @@ class IndexBuilder:
 
     @staticmethod
     def file_batch_signature(
-        file: "Path | list[Path]",
-        k: int,
-        scaled: int,
-        n: int,
-        force: bool,
-        nb_cores: int,
-        queue_size: int,
-        batch_size: int,
-        with_log: bool = True,
-    ) -> SourmashSignature:
-        """Compute one Sourmash signature for one or several files, in parallel batches.
-
-        Several files (e.g. paired-end or split reads) are folded into a single MinHash,
-        so the result is one signature for the whole sample.
-        """
+        file, k, scaled, n, force, nb_cores, queue_size, batch_size, with_log=True
+    ):
         files = [file] if isinstance(file, (str, Path)) else list(file)
 
-        man = MinHashManager(ctx=_MP_CONTEXT)
-        man.register("MinHash", MinHash)
-        man.start()
-        m = man.MinHash(n=n, ksize=k, scaled=scaled)  # type: ignore[attr-defined]
+        result = MinHash(n=n, ksize=k, scaled=scaled)
+        merge_lock = threading.Lock()  # callbacks run in a thread of the main process
+        errors: list[BaseException] = []
+
+        def _merge(fut):
+            try:
+                mh = fut.result()
+            except BaseException as e:
+                errors.append(e)
+                return
+            with merge_lock:
+                result.merge(mh)
+
+        def _iter_sequences():
+            for f in files:
+                if is_fastx(f):
+                    for record in Fastx(f):
+                        yield record[1]
+                else:
+                    with zopen(f, "rb") as file_io:
+                        for record in gb_io.iter(file_io):
+                            yield record.sequence.decode("utf-8")
+
+        def _submit(executor, batch):
+            fut = executor.submit(
+                IndexBuilder.sequence_batch_minhash, batch, k, n, scaled, force
+            )
+            fut.add_done_callback(_merge)
 
         with BoundedProcessPoolExecutor(
             queue_size,
@@ -275,60 +287,109 @@ class IndexBuilder:
             initializer=_ignore_sigint,
         ) as executor:
             try:
-                sequences = []
-                i = 0
-                for f in files:
-                    if is_fastx(f):
-                        for record in Fastx(f):
-                            sequences.append(record[1])
-                            i += 1
-                            if i % batch_size == 0:
-                                executor.submit(
-                                    IndexBuilder.add_sequences_minhash,
-                                    m,
-                                    sequences,
-                                    k,
-                                    n,
-                                    scaled,
-                                    force,
-                                )
-                                sequences = []
-                    else:
-                        with zopen(f, "rb") as file_io:
-                            for record in gb_io.iter(file_io):
-                                sequences.append(record.sequence.decode("utf-8"))
-                                i += 1
-                                if i % batch_size == 0:
-                                    executor.submit(
-                                        IndexBuilder.add_sequences_minhash,
-                                        m,
-                                        sequences,
-                                        k,
-                                        n,
-                                        scaled,
-                                        force,
-                                    )
-                                    sequences = []
-
-                if sequences:
-                    executor.submit(
-                        IndexBuilder.add_sequences_minhash,
-                        m,
-                        sequences,
-                        k,
-                        n,
-                        scaled,
-                        force,
-                    )
-
+                batch = []
+                for seq in _iter_sequences():
+                    batch.append(seq)
+                    if len(batch) == batch_size:
+                        _submit(executor, batch)
+                        batch = []
+                if batch:
+                    _submit(executor, batch)
             except KeyboardInterrupt:
                 mp_log_error(with_log, "Interrupted by user (Ctrl+C)")
                 executor.shutdown(wait=False)
                 os._exit(1)
 
-        signature = SourmashSignature(m.copy(), name=files[0].stem)
-        man.shutdown()
-        return signature
+        if errors:
+            raise errors[0]
+
+        return SourmashSignature(result, name=Path(files[0]).stem)
+
+    # @staticmethod
+    # def file_batch_signature(
+    #    file: "Path | list[Path]",
+    #    k: int,
+    #    scaled: int,
+    #    n: int,
+    #    force: bool,
+    #    nb_cores: int,
+    #    queue_size: int,
+    #    batch_size: int,
+    #    with_log: bool = True,
+    # ) -> SourmashSignature:
+    #    """Compute one Sourmash signature for one or several files, in parallel batches.
+
+    #    Several files (e.g. paired-end or split reads) are folded into a single MinHash,
+    #    so the result is one signature for the whole sample.
+    #    """
+    #    files = [file] if isinstance(file, (str, Path)) else list(file)
+
+    #    man = MinHashManager(ctx=_MP_CONTEXT)
+    #    man.register("MinHash", MinHash)
+    #    man.start()
+    #    m = man.MinHash(n=n, ksize=k, scaled=scaled)  # type: ignore[attr-defined]
+
+    #    with BoundedProcessPoolExecutor(
+    #        queue_size,
+    #        max_workers=nb_cores,
+    #        mp_context=_MP_CONTEXT,
+    #        initializer=_ignore_sigint,
+    #    ) as executor:
+    #        try:
+    #            sequences = []
+    #            i = 0
+    #            for f in files:
+    #                if is_fastx(f):
+    #                    for record in Fastx(f):
+    #                        sequences.append(record[1])
+    #                        i += 1
+    #                        if i % batch_size == 0:
+    #                            executor.submit(
+    #                                IndexBuilder.add_sequences_minhash,
+    #                                m,
+    #                                sequences,
+    #                                k,
+    #                                n,
+    #                                scaled,
+    #                                force,
+    #                            )
+    #                            sequences = []
+    #                else:
+    #                    with zopen(f, "rb") as file_io:
+    #                        for record in gb_io.iter(file_io):
+    #                            sequences.append(record.sequence.decode("utf-8"))
+    #                            i += 1
+    #                            if i % batch_size == 0:
+    #                                executor.submit(
+    #                                    IndexBuilder.add_sequences_minhash,
+    #                                    m,
+    #                                    sequences,
+    #                                    k,
+    #                                    n,
+    #                                    scaled,
+    #                                    force,
+    #                                )
+    #                                sequences = []
+
+    #            if sequences:
+    #                executor.submit(
+    #                    IndexBuilder.add_sequences_minhash,
+    #                    m,
+    #                    sequences,
+    #                    k,
+    #                    n,
+    #                    scaled,
+    #                    force,
+    #                )
+
+    #        except KeyboardInterrupt:
+    #            mp_log_error(with_log, "Interrupted by user (Ctrl+C)")
+    #            executor.shutdown(wait=False)
+    #            os._exit(1)
+
+    #    signature = SourmashSignature(m.copy(), name=files[0].stem)
+    #    man.shutdown()
+    #    return signature
 
     def construct(self, nb_cores: int, with_log: bool = True) -> IndexInfo:
         """Construct and save the index, returning its IndexInfo."""
